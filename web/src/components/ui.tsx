@@ -3,17 +3,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "../lib/utils";
 import { prettyHotkey } from "../lib/hotkeys";
 
+// Quad mark — "offset-tail tile" (2×2 rounded tiles; the offset bottom-right tile is the
+// teal accent, forming a q). Uses our design tokens so it tracks the theme.
 export function Logo({ size = 28 }: { size?: number }) {
+  const tile = { fill: "oklch(var(--foreground) / 0.42)" };
+  const accent = { fill: "oklch(var(--accent))" };
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" className="shrink-0">
-      <rect x="3" y="5" width="26" height="22" rx="2" fill="url(#wr-g)" stroke="oklch(0.99 0 0)" strokeWidth="2" />
-      <line x1="16" y1="6" x2="16" y2="26" stroke="oklch(0.99 0 0)" strokeWidth="2" />
-      <defs>
-        <linearGradient id="wr-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="oklch(0.74 0.13 192)" />
-          <stop offset="100%" stopColor="oklch(0.64 0.13 200)" />
-        </linearGradient>
-      </defs>
+    <svg width={size} height={size} viewBox="0 0 100 100" className="shrink-0" aria-hidden="true">
+      <rect x="22" y="22" width="24" height="24" rx="7" style={tile} />
+      <rect x="54" y="22" width="24" height="24" rx="7" style={tile} />
+      <rect x="22" y="54" width="24" height="24" rx="7" style={tile} />
+      <rect x="58" y="58" width="24" height="24" rx="7" style={accent} />
     </svg>
   );
 }

@@ -32,7 +32,7 @@ npm run tauri build
 # → bare exe:   src-tauri\target\release\quad.exe   (~6.5 MB)
 ```
 
-Run the installer (or the bare exe). Quad starts in the system tray (the teal split-window icon).
+Run the installer (or the bare exe). Quad starts in the system tray (the offset-tile mark with the teal accent tile).
 Right-click the tray icon for the menu, or double-click it / choose **Open Quad** for the UI.
 `quad.exe --open` launches with the window already open.
 
