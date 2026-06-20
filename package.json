@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Rectangle-style window tiling for Windows (Tauri)",
+  "license": "MIT",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",

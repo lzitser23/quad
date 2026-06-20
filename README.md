@@ -149,4 +149,4 @@ The engine is a **pure core under a thin imperative shell**: `src-tauri/src/layo
 
 - [Rectangle](https://github.com/rxhanson/Rectangle) — the macOS app Quad is modeled on.
 - [Tauri](https://tauri.app) and the [`windows`](https://github.com/microsoft/windows-rs) crate.
-- [Aceternity UI](https://ui.aceternity.com) — UI components; design tokens inspired by the `sibling-project` project.
+- [Aceternity UI](https://ui.aceternity.com) — UI components.
