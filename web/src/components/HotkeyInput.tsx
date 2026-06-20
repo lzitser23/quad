@@ -2,7 +2,7 @@ import { useState, type KeyboardEvent } from "react";
 import { cn } from "../lib/utils";
 import { prettyHotkey } from "../lib/hotkeys";
 
-/** Maps a browser KeyboardEvent's main key to a WinRect hotkey token (null = modifier only). */
+/** Maps a browser KeyboardEvent's main key to a Quad hotkey token (null = modifier only). */
 function mapKey(e: KeyboardEvent): string | null {
   const code = e.code;
   if (code.startsWith("Key")) return code.slice(3); // KeyA → A

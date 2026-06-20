@@ -1,4 +1,4 @@
-# WinRect
+# Quad
 
 **Rectangle for Windows.** A keyboard-driven window tiler modeled on macOS
 [Rectangle](https://github.com/rxhanson/Rectangle): snap windows to halves, thirds, quarters,
@@ -28,13 +28,13 @@ re-themes from one place.
 npm install                # root: Tauri CLI
 npm --prefix web install   # frontend deps
 npm run tauri build
-# → installer:  src-tauri\target\release\bundle\nsis\WinRect_0.1.0_x64-setup.exe
-# → bare exe:   src-tauri\target\release\winrect.exe   (~6.5 MB)
+# → installer:  src-tauri\target\release\bundle\nsis\Quad_0.1.0_x64-setup.exe
+# → bare exe:   src-tauri\target\release\quad.exe   (~6.5 MB)
 ```
 
-Run the installer (or the bare exe). WinRect starts in the system tray (the teal split-window icon).
-Right-click the tray icon for the menu, or double-click it / choose **Open WinRect** for the UI.
-`winrect.exe --open` launches with the window already open.
+Run the installer (or the bare exe). Quad starts in the system tray (the teal split-window icon).
+Right-click the tray icon for the menu, or double-click it / choose **Open Quad** for the UI.
+`quad.exe --open` launches with the window already open.
 
 Dev loop: `npm run tauri dev` (hot-reloads the React UI in the real window).
 
@@ -47,7 +47,7 @@ Dev loop: `npm run tauri dev` (hot-reloads the React UI in the real window).
 ## Default shortcuts
 
 `Ctrl+Alt` mirrors Rectangle's `Ctrl+Option`. All bindings are editable in **Settings** (or
-`%APPDATA%\WinRect\settings.json`).
+`%APPDATA%\Quad\settings.json`).
 
 | Action | Shortcut | Notes |
 |---|---|---|
@@ -73,7 +73,7 @@ A translucent teal preview shows where it'll land; it snaps on release.
 ## ⚠️ Ctrl+Alt+Arrow conflicts
 
 On many Windows 10 PCs, **Intel graphics drivers reserve `Ctrl+Alt+Arrow`** for screen rotation, so
-those four hotkeys may not register. WinRect detects registration conflicts and flags them as
+those four hotkeys may not register. Quad detects registration conflicts and flags them as
 **conflict** in Settings / Status. Fix by disabling the Intel hotkeys (Intel Graphics Command Center
 → *System* → *Hotkeys*) or by rebinding those actions in Settings.
 
@@ -81,14 +81,14 @@ those four hotkeys may not register. WinRect detects registration conflicts and 
 
 ## Notes & limitations
 
-- **Elevated windows:** WinRect runs un-elevated and can't move windows owned by elevated (admin)
-  processes — Windows blocks it. Run WinRect as admin if you need that.
-- **Aero Snap:** WinRect's drag-snap applies on mouse-release, so it generally wins over Windows'
+- **Elevated windows:** Quad runs un-elevated and can't move windows owned by elevated (admin)
+  processes — Windows blocks it. Run Quad as admin if you need that.
+- **Aero Snap:** Quad's drag-snap applies on mouse-release, so it generally wins over Windows'
   built-in Aero Snap. If you see fighting, turn off *Settings → System → Multitasking → Snap windows*,
-  or disable WinRect's drag-snap from the tray menu.
+  or disable Quad's drag-snap from the tray menu.
 - **Gaps:** set a pixel gap between tiled windows in Settings (default 0 = flush, like Rectangle).
 
-Settings and log live in `%APPDATA%\WinRect\`.
+Settings and log live in `%APPDATA%\Quad\`.
 
 ---
 
@@ -104,7 +104,6 @@ src-tauri/                     Tauri (Rust) backend
   tauri.conf.json              frameless window, tray, bundle config
 web/                           React + Tailwind + Framer Motion + Aceternity UI
   src/lib/bridge.ts            invoke()/listen() + window API (drag/resize/min/max/close)
-legacy-dotnet/                 the previous .NET 8 / WebView2 implementation (kept for reference)
 ```
 
 - **Hotkeys:** `tauri-plugin-global-shortcut` registers each binding; failures (conflicts) are

@@ -107,8 +107,8 @@ function mockState(): AppState {
     actions,
     registeredCount: actions.filter((a) => a.registered).length,
     failedCount: 0,
-    settingsPath: "%APPDATA%\\WinRect\\settings.json",
-    logPath: "%APPDATA%\\WinRect\\winrect.log",
+    settingsPath: "%APPDATA%\\Quad\\settings.json",
+    logPath: "%APPDATA%\\Quad\\quad.log",
   };
   return mock;
 }
