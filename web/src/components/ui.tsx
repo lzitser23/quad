@@ -26,7 +26,7 @@ export function Loading() {
         animate={{ rotate: 360 }}
         transition={{ repeat: Infinity, ease: "linear", duration: 0.8 }}
       />
-      Connecting to WinRect…
+      Connecting to Quad…
     </div>
   );
 }

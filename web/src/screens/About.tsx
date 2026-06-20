@@ -12,7 +12,7 @@ export function About({ state, notify }: { state: AppState; notify: (m: string, 
         <div className="flex items-center gap-3">
           <Logo size={40} />
           <div>
-            <div className="text-lg font-semibold text-foreground">WinRect</div>
+            <div className="text-lg font-semibold text-foreground">Quad</div>
             <div className="text-xs text-muted-foreground">v{state.version}</div>
           </div>
         </div>
@@ -58,11 +58,11 @@ export function About({ state, notify }: { state: AppState; notify: (m: string, 
         <Button
           variant="danger"
           onClick={async () => {
-            notify("Quitting WinRect…");
+            notify("Quitting Quad…");
             await api.quit();
           }}
         >
-          Quit WinRect
+          Quit Quad
         </Button>
       </section>
 

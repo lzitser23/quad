@@ -480,7 +480,7 @@ fn handle_menu(app: &AppHandle, id: &str) {
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let s = shared().settings.lock().unwrap().clone();
 
-    let open = MenuItemBuilder::with_id("open", "Open WinRect").build(app)?;
+    let open = MenuItemBuilder::with_id("open", "Open Quad").build(app)?;
     let drag = CheckMenuItemBuilder::with_id("drag", "Drag-to-snap")
         .checked(s.drag_snap_enabled)
         .build(app)?;
@@ -490,7 +490,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let reload = MenuItemBuilder::with_id("reload", "Reload settings file").build(app)?;
     let openset = MenuItemBuilder::with_id("opensettings", "Open settings file").build(app)?;
     let openlog = MenuItemBuilder::with_id("openlog", "Open log").build(app)?;
-    let quit = MenuItemBuilder::with_id("quit", "Exit WinRect").build(app)?;
+    let quit = MenuItemBuilder::with_id("quit", "Exit Quad").build(app)?;
 
     let menu = MenuBuilder::new(app)
         .item(&open)
@@ -510,7 +510,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let icon = app.default_window_icon().cloned().expect("missing default window icon");
     let tray = TrayIconBuilder::with_id("tray")
         .icon(icon)
-        .tooltip("WinRect — window tiling")
+        .tooltip("Quad — window tiling")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| handle_menu(app, event.id().as_ref()))
@@ -574,5 +574,5 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running WinRect");
+        .expect("error while running Quad");
 }

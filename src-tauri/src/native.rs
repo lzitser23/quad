@@ -36,7 +36,7 @@ unsafe fn worker_main() {
     let hinst: HINSTANCE = hmod.into();
 
     // Overlay window: a translucent teal rectangle for the drag-snap preview.
-    let class_name = w!("WinRectOverlay");
+    let class_name = w!("QuadOverlay");
     let brush = CreateSolidBrush(COLORREF(0x00A6_B814)); // teal #14b8a6 as 0x00BBGGRR
     let wc = WNDCLASSEXW {
         cbSize: size_of::<WNDCLASSEXW>() as u32,
