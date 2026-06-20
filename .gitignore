@@ -1,0 +1,21 @@
+# Node
+node_modules/
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Rust / Tauri
+target/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/build.log
+
+# .NET (legacy-dotnet/)
+bin/
+obj/
+publish/
+*.user
+WebAssets.zip
+
+# Logs / local
+*.log
