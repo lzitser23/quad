@@ -22,6 +22,7 @@ pub enum Action {
     MakeSmaller,
     NextDisplay,
     PreviousDisplay,
+    MissionControl,
 }
 
 pub struct Info {
@@ -55,14 +56,12 @@ pub const ALL: &[Info] = &[
     Info { action: Action::MakeSmaller, key: "MakeSmaller", display: "Make Smaller", default_hotkey: "Ctrl+Alt+OemMinus" },
     Info { action: Action::NextDisplay, key: "NextDisplay", display: "Next Display", default_hotkey: "Ctrl+Alt+Win+Right" },
     Info { action: Action::PreviousDisplay, key: "PreviousDisplay", display: "Previous Display", default_hotkey: "Ctrl+Alt+Win+Left" },
+    Info { action: Action::MissionControl, key: "MissionControl", display: "Mission Control", default_hotkey: "Ctrl+Alt+M" },
 ];
 
 impl Action {
     pub fn from_key(s: &str) -> Option<Action> {
         ALL.iter().find(|i| i.key == s).map(|i| i.action)
-    }
-    pub fn key(self) -> &'static str {
-        ALL.iter().find(|i| i.action == self).map(|i| i.key).unwrap_or("")
     }
     pub fn display(self) -> &'static str {
         ALL.iter().find(|i| i.action == self).map(|i| i.display).unwrap_or("")

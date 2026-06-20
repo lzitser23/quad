@@ -16,7 +16,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
-use crate::app::{shared, Shared};
+use crate::state::{shared, Shared};
 use crate::winmgr;
 
 const TIMER_ID: usize = 0xC0DE;
