@@ -12,4 +12,5 @@ src-tauri/build.log
 
 # Logs / local
 *.log
-*.png
+# stray debug screenshots at repo root (committed app icons live under src-tauri/icons/)
+/*.png
