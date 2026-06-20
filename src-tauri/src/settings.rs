@@ -31,13 +31,13 @@ impl Default for Settings {
 
 pub fn dir() -> PathBuf {
     let base = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
-    PathBuf::from(base).join("WinRect")
+    PathBuf::from(base).join("Quad")
 }
 pub fn settings_path() -> PathBuf {
     dir().join("settings.json")
 }
 pub fn log_path() -> PathBuf {
-    dir().join("winrect.log")
+    dir().join("quad.log")
 }
 
 impl Settings {
@@ -83,10 +83,10 @@ fn set_autostart(enable: bool) {
     if let Ok((run, _)) = hkcu.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run") {
         if enable {
             if let Ok(exe) = std::env::current_exe() {
-                let _ = run.set_value("WinRect", &format!("\"{}\"", exe.display()));
+                let _ = run.set_value("Quad", &format!("\"{}\"", exe.display()));
             }
         } else {
-            let _ = run.delete_value("WinRect");
+            let _ = run.delete_value("Quad");
         }
     }
 }

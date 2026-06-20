@@ -56,6 +56,18 @@ function Glyph({ kind }: { kind: GlyphKind }) {
       </div>
     );
   }
+  if (kind === "missionControl") {
+    // all windows "popped out" — a few fanned thumbnails, the front one accented
+    return (
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative h-[64%] w-[70%]">
+          <div className="absolute left-0 top-0 h-[52%] w-[52%] rounded-[2px] border border-border bg-muted/50" />
+          <div className="absolute right-0 top-[8%] h-[48%] w-[46%] rounded-[2px] border border-border bg-muted/40" />
+          <div className={cn("absolute bottom-0 left-[10%] h-[52%] w-[58%]", win)} />
+        </div>
+      </div>
+    );
+  }
   // nextDisplay / prevDisplay: two monitors, window highlighted on the target side
   const next = kind === "nextDisplay";
   return (

@@ -1,41 +1,6 @@
 import { useState, type KeyboardEvent } from "react";
 import { cn } from "../lib/utils";
-import { prettyHotkey } from "../lib/hotkeys";
-
-/** Maps a browser KeyboardEvent's main key to a WinRect hotkey token (null = modifier only). */
-function mapKey(e: KeyboardEvent): string | null {
-  const code = e.code;
-  if (code.startsWith("Key")) return code.slice(3); // KeyA → A
-  if (code.startsWith("Digit")) return code.slice(5); // Digit1 → 1
-  if (/^F\d{1,2}$/.test(code)) return code; // F1..F12
-  switch (code) {
-    case "ArrowLeft": return "Left";
-    case "ArrowRight": return "Right";
-    case "ArrowUp": return "Up";
-    case "ArrowDown": return "Down";
-    case "Enter":
-    case "NumpadEnter": return "Enter";
-    case "Backspace": return "Back";
-    case "Delete": return "Delete";
-    case "Insert": return "Insert";
-    case "Home": return "Home";
-    case "End": return "End";
-    case "PageUp": return "PageUp";
-    case "PageDown": return "PageDown";
-    case "Space": return "Space";
-    case "Equal":
-    case "NumpadAdd": return "Oemplus";
-    case "Minus":
-    case "NumpadSubtract": return "OemMinus";
-    case "Comma": return "OemComma";
-    case "Period": return "OemPeriod";
-    case "Semicolon": return "Oem1";
-    case "Slash": return "Oem2";
-    case "BracketLeft": return "Oem4";
-    case "BracketRight": return "Oem6";
-    default: return null;
-  }
-}
+import { prettyHotkey, tokenFromCode } from "../lib/hotkeys";
 
 export function HotkeyInput({
   value,
@@ -60,7 +25,7 @@ export function HotkeyInput({
       (e.target as HTMLElement).blur();
       return;
     }
-    const key = mapKey(e);
+    const key = tokenFromCode(e.code);
     if (!key) return; // wait for a non-modifier key
     const mods: string[] = [];
     if (e.ctrlKey) mods.push("Ctrl");

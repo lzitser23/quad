@@ -1,125 +1,152 @@
-# WinRect
+<p align="center">
+  <img src="src-tauri/icons/128x128.png" alt="Quad logo" width="116" />
+</p>
 
-**Rectangle for Windows.** A keyboard-driven window tiler modeled on macOS
-[Rectangle](https://github.com/rxhanson/Rectangle): snap windows to halves, thirds, quarters,
-maximize/center/restore, cycle sizes by repeating a shortcut, move windows across monitors, and
-drag a window to a screen edge to snap it.
+<h1 align="center">Quad</h1>
 
-Built with **Tauri 2** — the native window-management engine is **Rust** (Win32 via the `windows`
-crate; global hotkeys via `tauri-plugin-global-shortcut`), and the app's window is a **React +
-Tailwind + Framer Motion** UI using [Aceternity UI](https://ui.aceternity.com/) components, rendered
-in WebView2. It lives in the system tray.
+<p align="center">
+  <strong>Rectangle for Windows — keyboard-driven window tiling.</strong>
+</p>
 
-The window is **frameless with custom chrome** (Tauri `decorations: false`): the dark UI runs edge
-to edge with its own draggable title bar and minimize / maximize / close buttons, while keeping
-native resize, Aero Snap, maximize, and the window shadow.
+<p align="center">
+  <a href="#features">Features</a> |
+  <a href="#installation">Installation</a> |
+  <a href="#quick-start">Quick Start</a> |
+  <a href="#development">Development</a> |
+  <a href="#architecture">Architecture</a>
+</p>
 
-**Design system:** a spoon-inspired token set — **JetBrains Mono** throughout, OKLCH neutral
-surfaces with a **teal** accent, squared-off corners, and thin token-driven scrollbars. Tokens are
-CSS variables in `web/src/index.css` mapped through `web/tailwind.config.js`, so the whole UI
-re-themes from one place.
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-Windows-orange" alt="Platform: Windows" />
+  <img src="https://img.shields.io/badge/Tauri-2-24C8DB" alt="Tauri 2" />
+  <img src="https://img.shields.io/badge/Rust-engine-DEA584" alt="Rust engine" />
+  <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React 18" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6" alt="TypeScript 5" />
+  <img src="https://github.com/lzitser23/quad/actions/workflows/build.yml/badge.svg" alt="Build status" />
+</p>
 
 ---
 
-## Quick start
+## Overview
 
-```powershell
-# Requires: Rust (stable, MSVC) + Node.js. End users just run the installer.
-npm install                # root: Tauri CLI
+**Quad** is a window tiler for Windows modeled on macOS [Rectangle](https://github.com/rxhanson/Rectangle): snap windows to halves, thirds, and quarters, maximize / center / restore, cycle sizes by repeating a shortcut, move windows across monitors, and drag a window to a screen edge to snap it.
+
+The window-management engine is native **Rust** (Win32 via the `windows` crate; global hotkeys via `tauri-plugin-global-shortcut`). The app's window — a settings screen, a visual shortcut guide, click-to-apply layouts, and status — is a **React** UI rendered in WebView2 by **Tauri 2**. It lives in the system tray. Settings and the log live in `%APPDATA%\Quad\`.
+
+---
+
+## Features
+
+- **Tiling shortcuts** — halves, thirds, quarters, maximize, center, with **size-cycling on repeat** (Left Half walks ½ → ⅔ → ⅓, just like Rectangle).
+- **Drag-to-edge snapping** — drag a window to an edge → half, a corner → quarter, the top → maximize, with a translucent teal preview that snaps on release.
+- **Mission Control** — one shortcut opens Windows **Task View** (all windows on the current desktop + the virtual-desktop strip).
+- **Multi-monitor** — move a window to the next / previous display, preserving its relative size and position.
+- **Restore** — remembers each window's pre-tiling geometry and brings it back.
+- **Click-to-apply** — click any layout in the UI to apply it to your last active window.
+- **Live rebinding** — rebind every shortcut from the settings screen; conflicts (e.g. `Ctrl+Alt+Arrow` claimed by Intel graphics) are detected and flagged.
+- **Frameless custom chrome** — the dark UI runs edge to edge with its own draggable title bar, while keeping native resize, Aero Snap, and double-click-to-maximize.
+
+---
+
+## Installation
+
+### Download a build
+
+Every push to `main` builds a portable `quad.exe` and an installer via [GitHub Actions](https://github.com/lzitser23/quad/actions/workflows/build.yml) and publishes them to the [latest release](https://github.com/lzitser23/quad/releases/latest). They're also attached as artifacts on each workflow run.
+
+| Platform | Asset | Notes |
+| --- | --- | --- |
+| Windows x64 | `quad.exe` | Portable — run it directly; it starts in the system tray. |
+| Windows x64 | `Quad_0.1.0_x64-setup.exe` | NSIS installer. |
+
+**Windows:** the binaries are **unsigned**, so SmartScreen may warn on first run — choose **More info → Run anyway**. Quad uses the Microsoft Edge **WebView2** runtime (preinstalled on Windows 11 and most updated Windows 10).
+
+### Build from source
+
+See [Development](#development).
+
+---
+
+## Quick Start
+
+1. Run `quad.exe` (or the installer). Quad starts in the system tray — the offset-tile mark with the teal accent tile.
+2. Snap the focused window with a shortcut (`Ctrl+Alt` mirrors Rectangle's `Ctrl+Option`):
+
+   | Action | Shortcut |
+   | --- | --- |
+   | Left / Right Half | `Ctrl+Alt+←` / `→` *(repeat to cycle ½ → ⅔ → ⅓)* |
+   | Top / Bottom Half | `Ctrl+Alt+↑` / `↓` |
+   | Quarters | `Ctrl+Alt+U` / `I` / `J` / `K` |
+   | First / Center / Last Third | `Ctrl+Alt+D` / `F` / `G` |
+   | Maximize · Center · Restore | `Ctrl+Alt+Enter` · `Ctrl+Alt+C` · `Ctrl+Alt+Backspace` |
+   | Next / Previous Display | `Ctrl+Alt+Win+→` / `←` |
+   | **Mission Control** | `Ctrl+Alt+M` |
+
+3. Or **drag** a window to a screen edge / corner to snap it.
+4. Open the window from the tray (or **click** any layout there to apply it to your last window), and **rebind** anything in Settings — all bindings are editable, or via `%APPDATA%\Quad\settings.json`.
+
+---
+
+## Stack
+
+| Layer | Choice |
+| --- | --- |
+| Shell & packaging | [Tauri 2](https://tauri.app) |
+| Native engine | Rust 2021 — [`windows`](https://crates.io/crates/windows) 0.58, [`tauri-plugin-global-shortcut`](https://crates.io/crates/tauri-plugin-global-shortcut) 2 |
+| UI | React 18 · TypeScript 5 · [Vite](https://vitejs.dev) 5 |
+| Styling | Tailwind 3 · Framer Motion 11 · [Aceternity UI](https://ui.aceternity.com) components · JetBrains Mono |
+| Settings & autostart | `serde_json` + `winreg` (HKCU `Run`) |
+
+---
+
+## Development
+
+### Prerequisites
+
+- **Rust** (stable, MSVC toolchain) and **Node.js 20+**.
+- The Microsoft Edge **WebView2** runtime (preinstalled on Windows 11 / updated Windows 10).
+
+### Commands
+
+```bash
+git clone https://github.com/lzitser23/quad.git
+cd quad
+npm install            # Tauri CLI
 npm --prefix web install   # frontend deps
-npm run tauri build
-# → installer:  src-tauri\target\release\bundle\nsis\WinRect_0.1.0_x64-setup.exe
-# → bare exe:   src-tauri\target\release\winrect.exe   (~6.5 MB)
 ```
 
-Run the installer (or the bare exe). WinRect starts in the system tray (the teal split-window icon).
-Right-click the tray icon for the menu, or double-click it / choose **Open WinRect** for the UI.
-`winrect.exe --open` launches with the window already open.
+```bash
+npm run tauri dev      # hot-reloading dev window
+npm run tauri build    # portable quad.exe + NSIS installer in src-tauri/target/release
+cargo test --manifest-path src-tauri/Cargo.toml   # the pure engine's unit tests
+```
 
-Dev loop: `npm run tauri dev` (hot-reloads the React UI in the real window).
+> A plain `cargo build` runs in dev mode (loads the Vite dev URL). Production builds must go through the Tauri CLI (`npm run tauri build`) so the frontend is embedded.
 
-> **WebView2 runtime:** Tauri uses Microsoft's Edge WebView2 runtime on Windows (preinstalled on
-> Windows 11 and most updated Windows 10). Your shortcuts and drag-snap work regardless — it's only
-> for the settings window.
+### Project Structure
 
----
-
-## Default shortcuts
-
-`Ctrl+Alt` mirrors Rectangle's `Ctrl+Option`. All bindings are editable in **Settings** (or
-`%APPDATA%\WinRect\settings.json`).
-
-| Action | Shortcut | Notes |
-|---|---|---|
-| Left / Right Half | `Ctrl+Alt+←` / `→` | Repeat to cycle **½ → ⅔ → ⅓** |
-| Top / Bottom Half | `Ctrl+Alt+↑` / `↓` | |
-| Quarters | `Ctrl+Alt+U` / `I` / `J` / `K` | TL / TR / BL / BR |
-| First / Center / Last Third | `Ctrl+Alt+D` / `F` / `G` | First & Last cycle through thirds |
-| First / Last Two-Thirds | `Ctrl+Alt+E` / `T` | |
-| Maximize | `Ctrl+Alt+Enter` | Fills the work area (not OS-maximize) |
-| Center | `Ctrl+Alt+C` | Keeps size |
-| Restore | `Ctrl+Alt+Backspace` | Back to pre-snap geometry |
-| Make Larger / Smaller | `Ctrl+Alt++` / `-` | |
-| Next / Previous Display | `Ctrl+Alt+Win+→` / `←` | |
-| Almost Maximize / Maximize Height | *(unbound)* | Assign in Settings |
-
-**Drag-to-snap:** drag a window to a screen edge → half, a corner → quarter, the top → maximize.
-A translucent teal preview shows where it'll land; it snaps on release.
-
-**Click-to-apply:** in the **Shortcuts** tab, click any layout to apply it to your last active window.
-
----
-
-## ⚠️ Ctrl+Alt+Arrow conflicts
-
-On many Windows 10 PCs, **Intel graphics drivers reserve `Ctrl+Alt+Arrow`** for screen rotation, so
-those four hotkeys may not register. WinRect detects registration conflicts and flags them as
-**conflict** in Settings / Status. Fix by disabling the Intel hotkeys (Intel Graphics Command Center
-→ *System* → *Hotkeys*) or by rebinding those actions in Settings.
-
----
-
-## Notes & limitations
-
-- **Elevated windows:** WinRect runs un-elevated and can't move windows owned by elevated (admin)
-  processes — Windows blocks it. Run WinRect as admin if you need that.
-- **Aero Snap:** WinRect's drag-snap applies on mouse-release, so it generally wins over Windows'
-  built-in Aero Snap. If you see fighting, turn off *Settings → System → Multitasking → Snap windows*,
-  or disable WinRect's drag-snap from the tray menu.
-- **Gaps:** set a pixel gap between tiled windows in Settings (default 0 = flush, like Rectangle).
-
-Settings and log live in `%APPDATA%\WinRect\`.
+```text
+quad/
+|-- src-tauri/   # Rust engine: layout, winmgr, hotkeys, ipc, tray, state, native
+|-- web/         # React + Tailwind + Framer Motion UI
+|-- docs/adr/    # architecture decision records
+|-- .github/     # CI: build the portable on merge to main
+`-- CONTEXT.md   # domain glossary
+```
 
 ---
 
 ## Architecture
 
-```
-src-tauri/                     Tauri (Rust) backend
-  src/app.rs                   Tauri builder, commands, tray, hotkey registration, shared state
-  src/winmgr.rs                monitors + window manager (DWM-flush, size cycling, restore, multi-monitor)
-  src/native.rs                worker thread: WinEvent hooks (foreground + drag-snap) + preview overlay
-  src/settings.rs              JSON settings, autostart (HKCU Run), logging
-  src/actions.rs               WindowAction table + default hotkeys
-  tauri.conf.json              frameless window, tray, bundle config
-web/                           React + Tailwind + Framer Motion + Aceternity UI
-  src/lib/bridge.ts            invoke()/listen() + window API (drag/resize/min/max/close)
-legacy-dotnet/                 the previous .NET 8 / WebView2 implementation (kept for reference)
-```
+The engine is a **pure core under a thin imperative shell**: `src-tauri/src/layout.rs` computes every tiling rect (halves/thirds/quarters, size-cycling, snap zones) as pure value transforms with no Win32, so the geometry is unit-tested directly; `winmgr.rs` resolves the foreground window and its monitor, calls `layout`, and applies the result with `SetWindowPos`. Hotkeys, the IPC contract, the tray, and shared state each live in their own module; the React UI talks to Rust through `#[tauri::command]`s and `emit` events, mirrored in `web/src/lib/`.
 
-- **Hotkeys:** `tauri-plugin-global-shortcut` registers each binding; failures (conflicts) are
-  reported per-action.
-- **Window control:** native Win32 `SetWindowPos` with DWM invisible-border compensation, per-monitor
-  work areas, and DWM extended-frame-bounds for flush positioning.
-- **Custom chrome:** Tauri `decorations: false`; the React title bar drives `startDragging()` /
-  `startResizeDragging()` and the window controls.
-- **IPC:** Rust `#[tauri::command]`s (`get_state`, `update_settings`, `set_hotkey`, `apply_action`, …)
-  and `emit("state", …)` events; the React `api` wrapper mirrors the previous bridge surface.
+- **[CONTEXT.md](CONTEXT.md)** — the domain glossary (Action, work area, snap zone, hotkey spec…) and the module map.
+- **[docs/adr/](docs/adr/)** — architecture decision records: the Tauri/Rust choice, the pure-layout split, the hotkey-spec seam, and the Mission Control → Task View mapping.
 
 ---
 
-## Credits
+## Acknowledgments
 
-Inspired by [Rectangle](https://github.com/rxhanson/Rectangle) by Ryan Hanson.
-UI built with [Aceternity UI](https://ui.aceternity.com/) components; design tokens inspired by the
-`spoon` project's monospace aesthetic.
+- [Rectangle](https://github.com/rxhanson/Rectangle) — the macOS app Quad is modeled on.
+- [Tauri](https://tauri.app) and the [`windows`](https://github.com/microsoft/windows-rs) crate.
+- [Aceternity UI](https://ui.aceternity.com) — UI components; design tokens inspired by the `spoon` project.

@@ -51,7 +51,7 @@ export function Settings({
         <Toggle
           checked={s.startWithWindows}
           onChange={(v) => patch({ startWithWindows: v })}
-          label="Start WinRect when I sign in"
+          label="Start Quad when I sign in"
         />
       </section>
 

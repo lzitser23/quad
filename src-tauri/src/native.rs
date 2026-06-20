@@ -16,7 +16,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
-use crate::app::{shared, Shared};
+use crate::state::{shared, Shared};
 use crate::winmgr;
 
 const TIMER_ID: usize = 0xC0DE;
@@ -36,8 +36,8 @@ unsafe fn worker_main() {
     let hinst: HINSTANCE = hmod.into();
 
     // Overlay window: a translucent teal rectangle for the drag-snap preview.
-    let class_name = w!("WinRectOverlay");
-    let brush = CreateSolidBrush(COLORREF(0x00A6_B814)); // teal #14b8a6 as 0x00BBGGRR
+    let class_name = w!("QuadOverlay");
+    let brush = CreateSolidBrush(COLORREF(0x00C0_BC10)); // teal #10bcc0 (= --accent) as 0x00BBGGRR
     let wc = WNDCLASSEXW {
         cbSize: size_of::<WNDCLASSEXW>() as u32,
         lpfnWndProc: Some(overlay_wndproc),
