@@ -37,7 +37,7 @@ unsafe fn worker_main() {
 
     // Overlay window: a translucent teal rectangle for the drag-snap preview.
     let class_name = w!("QuadOverlay");
-    let brush = CreateSolidBrush(COLORREF(0x00A6_B814)); // teal #14b8a6 as 0x00BBGGRR
+    let brush = CreateSolidBrush(COLORREF(0x00C0_BC10)); // teal #10bcc0 (= --accent) as 0x00BBGGRR
     let wc = WNDCLASSEXW {
         cbSize: size_of::<WNDCLASSEXW>() as u32,
         lpfnWndProc: Some(overlay_wndproc),

@@ -49,10 +49,7 @@ export default function App() {
 
         <div className="pointer-events-none relative flex items-center gap-3 py-3">
           <Logo size={28} />
-          <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight text-foreground">Quad</div>
-            <div className="text-[11px] text-muted-foreground">Rectangle-style window tiling</div>
-          </div>
+          <div className="text-sm font-semibold tracking-tight text-foreground">Quad</div>
         </div>
 
         <div className="relative flex items-center py-3">
