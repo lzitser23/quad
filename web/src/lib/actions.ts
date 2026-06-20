@@ -10,7 +10,7 @@ export interface PreviewRegion {
   h: number;
 }
 
-export type Glyph = "restore" | "larger" | "smaller" | "nextDisplay" | "prevDisplay";
+export type Glyph = "restore" | "larger" | "smaller" | "nextDisplay" | "prevDisplay" | "missionControl";
 
 export interface ActionMeta {
   key: string;
@@ -58,6 +58,7 @@ export const ACTIONS: ActionMeta[] = [
   // Move
   { key: "NextDisplay", display: "Next Display", defaultHotkey: "Ctrl+Alt+Win+Right", category: "Move", blurb: "Send to right monitor", glyph: "nextDisplay" },
   { key: "PreviousDisplay", display: "Previous Display", defaultHotkey: "Ctrl+Alt+Win+Left", category: "Move", blurb: "Send to left monitor", glyph: "prevDisplay" },
+  { key: "MissionControl", display: "Mission Control", defaultHotkey: "Ctrl+Alt+M", category: "Move", blurb: "All windows + desktops (Task View)", glyph: "missionControl" },
 ];
 
 export const CATEGORIES: Category[] = ["Halves", "Quarters", "Thirds", "Resize & Center", "Move"];
