@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>WinRect</AssemblyName>
+    <RootNamespace>WinRect</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <Version>0.1.0</Version>
+    <Product>WinRect</Product>
+    <AssemblyTitle>WinRect — Rectangle-style window manager for Windows</AssemblyTitle>
+    <Company>WinRect</Company>
+    <Description>Keyboard-driven window tiling for Windows, modeled on macOS Rectangle.</Description>
+
+    <Deterministic>true</Deterministic>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+
+    <!-- Defaults for `dotnet publish`; override on the command line as needed. -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' AND '$(Configuration)' == 'Release'">win-x64</RuntimeIdentifier>
+    <SelfContained Condition="'$(Configuration)' == 'Release'">true</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
+  </ItemGroup>
+
+  <!-- The React/Aceternity UI is built by build.ps1 into web/dist, zipped to WebAssets.zip,
+       and embedded here so the app ships as a single exe (extracted at runtime). -->
+  <ItemGroup>
+    <EmbeddedResource Include="WebAssets.zip" Condition="Exists('WebAssets.zip')">
+      <LogicalName>WinRect.WebAssets.zip</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>
