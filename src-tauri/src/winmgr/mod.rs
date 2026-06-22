@@ -83,6 +83,11 @@ pub fn compute_zone(pt: Point, settings: &Settings) -> Option<Rect> {
 
 // ---- Window manager (cycle + restore state; the imperative shell) -----------
 
+#[allow(dead_code)]
+fn rstr(r: Rect) -> String {
+    format!("[{},{} {}x{}]", r.left, r.top, r.w(), r.h())
+}
+
 pub struct WindowManager {
     restore: HashMap<WinId, Rect>,
     last_applied: HashMap<WinId, Rect>,
@@ -104,16 +109,29 @@ impl WindowManager {
     }
 
     pub fn execute_on(&mut self, action: Action, id: WinId, settings: &Settings) {
+        crate::settings::diag(&format!("execute_on action={:?} id={:#x}", action, id));
         // Global action — no window needed.
         if action == Action::MissionControl {
             sys::show_task_view();
             return;
         }
         if !sys::is_manageable(id) {
+            crate::settings::diag("  -> not manageable, skipping");
             return;
         }
         let key = id;
         let mon = sys::monitor_from_window(id);
+        #[cfg(target_os = "macos")]
+        {
+            let mons = sys::all_monitors();
+            crate::settings::diag(&format!(
+                "  monitors={} current.handle={:#x} bounds={} work={}",
+                mons.len(),
+                mon.handle,
+                rstr(mon.bounds),
+                rstr(mon.work)
+            ));
+        }
 
         if action == Action::Restore {
             if let Some(rrect) = self.restore.get(&key).copied() {
@@ -130,10 +148,19 @@ impl WindowManager {
             self.cycle = layout::reset();
             let step = if action == Action::NextDisplay { 1 } else { -1 };
             let to = relative(&mon, step);
+            crate::settings::diag(&format!(
+                "  display-move step={} to.handle={:#x} different={}",
+                step,
+                to.handle,
+                to.handle != mon.handle
+            ));
             if to.handle != mon.handle {
                 let target = layout::map_proportional(sys::visible_rect(id), mon.work, to.work);
+                crate::settings::diag(&format!("  -> moving across to {}", rstr(target)));
                 sys::apply_visible_rect(id, target);
                 self.last_applied.insert(key, target);
+            } else {
+                crate::settings::diag("  -> only one display resolved, no move");
             }
             return;
         }
@@ -150,6 +177,7 @@ impl WindowManager {
         if let Some(target) =
             layout::target_rect(action, mon.work, current, idx, settings.gap_px, settings.resize_step_px)
         {
+            crate::settings::diag(&format!("  -> tiling (idx={idx}) to {}", rstr(target)));
             sys::apply_visible_rect(id, target);
             self.last_applied.insert(key, target);
         }

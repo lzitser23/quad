@@ -178,6 +178,7 @@ pub fn apply_action(action: String) -> ApplyResult {
         Some(a) => a,
         None => return ApplyResult { ok: false, message: "Unknown action.".into() },
     };
+    crate::settings::diag(&format!("apply_action (click) -> {a:?}"));
     // Mission Control is global — no target window needed.
     if a == Action::MissionControl {
         winmgr::show_task_view();

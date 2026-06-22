@@ -35,13 +35,63 @@ export function tokenFromCode(code: string): string | null {
   }
 }
 
-/** Turn a stored hotkey spec ("Ctrl+Alt+Oemplus") into something readable ("Ctrl + Alt + +"). */
+const IS_MAC =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || "");
+
+// On macOS the "Win"/Super token IS the Command key; render native Apple symbols so the labels
+// read like the rest of the system (⌃⌥⇧⌘ →) instead of Windows names.
+const MAC_MODS: Record<string, string> = {
+  ctrl: "⌃", control: "⌃",
+  alt: "⌥", option: "⌥",
+  shift: "⇧",
+  win: "⌘", cmd: "⌘", super: "⌘", meta: "⌘",
+};
+const MAC_MOD_ORDER: Record<string, number> = { "⌃": 0, "⌥": 1, "⇧": 2, "⌘": 3 };
+
+/** macOS key glyphs (arrows, ↩, ⌫, …). */
+function macKey(low: string, raw: string): string {
+  switch (low) {
+    case "left": return "←";
+    case "right": return "→";
+    case "up": return "↑";
+    case "down": return "↓";
+    case "enter": case "return": return "↩";
+    case "back": case "backspace": return "⌫";
+    case "delete": case "del": return "⌦";
+    case "escape": case "esc": return "⎋";
+    case "space": return "Space";
+    case "oemplus": case "plus": return "+";
+    case "oemminus": case "minus": return "−";
+    case "oemcomma": return ",";
+    case "oemperiod": return ".";
+    case "oem1": return ";";
+    case "oem2": return "/";
+    default: return raw.length === 1 ? raw.toUpperCase() : raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+}
+
+/** Turn a stored hotkey spec ("Ctrl+Alt+Win+Right") into something readable — "Ctrl + Alt + Win + Right"
+ *  on Windows, native "⌃⌥⌘→" on macOS. */
 export function prettyHotkey(spec: string): string {
   if (!spec) return "";
-  return spec
-    .split("+")
-    .map((p) => {
-      const t = p.trim();
+  const parts = spec.split("+").map((p) => p.trim()).filter(Boolean);
+
+  if (IS_MAC) {
+    const mods: string[] = [];
+    let key = "";
+    for (const p of parts) {
+      const low = p.toLowerCase();
+      if (low in MAC_MODS) mods.push(MAC_MODS[low]);
+      else key = macKey(low, p);
+    }
+    mods.sort((a, b) => (MAC_MOD_ORDER[a] ?? 9) - (MAC_MOD_ORDER[b] ?? 9));
+    return mods.join("") + key;
+  }
+
+  // Windows / other — unchanged.
+  return parts
+    .map((t) => {
       const low = t.toLowerCase();
       if (low === "oemplus" || low === "plus") return "+";
       if (low === "oemminus" || low === "minus") return "−";
