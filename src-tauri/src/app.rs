@@ -20,6 +20,14 @@ pub fn run() {
             ipc::quit_app
         ])
         .setup(|app| {
+            // Quad is a tray utility — on macOS, drop the Dock icon and nudge the user to grant
+            // the Accessibility permission the window-mover needs.
+            #[cfg(target_os = "macos")]
+            {
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                crate::winmgr::ensure_accessibility();
+            }
+
             let _ = state::shared().app.set(app.handle().clone());
             state::shared().settings.lock().unwrap().apply_autostart();
             hotkeys::register_all(app.handle());

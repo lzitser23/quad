@@ -56,11 +56,70 @@ jobs:
           path: dist-portable/*
           if-no-files-found: error
 
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix web ci
+
+      - name: Test the pure engine
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build (Tauri release, universal DMG)
+        # Unsigned/ad-hoc build: no Apple Developer cert in CI, so sign ad-hoc ("-") and skip
+        # notarization. macOS will warn on first open (right-click → Open) until a stable Developer
+        # ID signs it; the Accessibility grant also re-prompts per build without a stable identity.
+        run: npm run tauri build -- --target universal-apple-darwin --bundles dmg
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+
+      - name: Collect the DMG
+        run: |
+          mkdir -p dist-mac
+          cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg dist-mac/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quad-macos
+          path: dist-mac/*
+          if-no-files-found: error
+
+  release:
+    needs: [portable, mac]
+    # Publish whatever built, even if one platform failed — so a macOS break can't hold up the
+    # Windows release (and vice versa). Skipped only on cancellation or off-main builds.
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
       - name: Publish rolling "latest" release
-        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Quad — latest build from main
           prerelease: true
-          files: dist-portable/*
+          files: dist/**/*

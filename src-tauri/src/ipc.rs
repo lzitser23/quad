@@ -1,12 +1,10 @@
 //! The Rust↔JS contract: serialized DTOs, state snapshots/events, and the Tauri command handlers.
 //! The TS mirror lives in `web/src/lib/{types.ts,bridge.ts}`.
 
-use std::ffi::c_void;
 use std::sync::atomic::Ordering;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
-use windows::Win32::Foundation::HWND;
 
 use crate::actions::{self, Action};
 use crate::settings;
@@ -186,16 +184,15 @@ pub fn apply_action(action: String) -> ApplyResult {
         return ApplyResult { ok: true, message: format!("Applied {}", a.display()) };
     }
     let target = shared().last_active.load(Ordering::Relaxed);
-    let hwnd = HWND(target as *mut c_void);
-    if target == 0 || !winmgr::is_manageable(hwnd) {
+    if target == 0 || !winmgr::is_manageable(target) {
         return ApplyResult {
             ok: false,
             message: "No recent window. Click a normal app window, then try again.".into(),
         };
     }
     let settings = shared().settings.lock().unwrap().clone();
-    shared().wm.lock().unwrap().execute_on(a, hwnd, &settings);
-    winmgr::set_foreground(hwnd);
+    shared().wm.lock().unwrap().execute_on(a, target, &settings);
+    winmgr::set_foreground(target);
     ApplyResult { ok: true, message: format!("Applied {}", a.display()) }
 }
 
@@ -214,8 +211,14 @@ pub fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+#[cfg(windows)]
 fn open_path(p: std::path::PathBuf) {
     let _ = std::process::Command::new("cmd")
         .args(["/C", "start", "", &p.display().to_string()])
         .spawn();
+}
+
+#[cfg(not(windows))]
+fn open_path(p: std::path::PathBuf) {
+    let _ = std::process::Command::new("open").arg(p).spawn();
 }
