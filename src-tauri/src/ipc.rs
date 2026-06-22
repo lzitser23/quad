@@ -44,6 +44,7 @@ pub struct AppStateDto {
     failed_count: i32,
     settings_path: String,
     log_path: String,
+    accessibility_ok: bool,
 }
 
 #[derive(Serialize)]
@@ -110,6 +111,7 @@ pub fn build_state() -> AppStateDto {
         failed_count,
         settings_path: settings::settings_path().display().to_string(),
         log_path: settings::log_path().display().to_string(),
+        accessibility_ok: winmgr::accessibility_ok(),
     }
 }
 
@@ -178,11 +180,16 @@ pub fn apply_action(action: String) -> ApplyResult {
         Some(a) => a,
         None => return ApplyResult { ok: false, message: "Unknown action.".into() },
     };
-    crate::settings::diag(&format!("apply_action (click) -> {a:?}"));
     // Mission Control is global — no target window needed.
     if a == Action::MissionControl {
         winmgr::show_task_view();
         return ApplyResult { ok: true, message: format!("Applied {}", a.display()) };
+    }
+    if !winmgr::accessibility_ok() {
+        return ApplyResult {
+            ok: false,
+            message: "Quad needs Accessibility permission. Open System Settings → Privacy & Security → Accessibility, enable Quad, then relaunch.".into(),
+        };
     }
     let target = shared().last_active.load(Ordering::Relaxed);
     if target == 0 || !winmgr::is_manageable(target) {
@@ -210,6 +217,12 @@ pub fn open_settings_file() {
 #[tauri::command]
 pub fn quit_app(app: AppHandle) {
     app.exit(0);
+}
+
+/// Open the OS permission UI Quad needs (macOS Accessibility pane); no-op elsewhere.
+#[tauri::command]
+pub fn request_accessibility() {
+    winmgr::request_accessibility();
 }
 
 #[cfg(windows)]

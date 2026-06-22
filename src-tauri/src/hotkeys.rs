@@ -80,7 +80,6 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
                 let map = shared().shortcuts.lock().unwrap();
                 map.iter().find(|(s, _)| s == shortcut).map(|(_, a)| *a)
             };
-            crate::settings::diag(&format!("hotkey fired: {shortcut:?} -> {action:?}"));
             if let Some(a) = action {
                 run_foreground(a);
             }

@@ -58,6 +58,11 @@ jobs:
 
   mac:
     runs-on: macos-latest
+    # "yes" once the Apple signing secrets are configured (see below). Until then the build is
+    # ad-hoc signed and unsigned-notarized — it still produces a working DMG, just with the
+    # Gatekeeper warning + per-build Accessibility re-prompt.
+    env:
+      SIGNED: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && 'yes' || 'no' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,13 +89,48 @@ jobs:
       - name: Test the pure engine
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      # ---- Signing (only when the Apple secrets are present) --------------------------------
+      # Import the Developer ID cert into a throwaway keychain so codesign can find it.
+      - name: Import Apple signing certificate
+        if: env.SIGNED == 'yes'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
+          security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain
+          rm "$RUNNER_TEMP/certificate.p12"
+
+      # Materialize the App Store Connect API key (.p8) and expose the notarization vars — but only
+      # in the signed path, so unsigned builds don't hand Tauri blank credentials.
+      - name: Prepare notarization API key
+        if: env.SIGNED == 'yes'
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$KEY_PATH"
+          {
+            echo "APPLE_API_KEY_PATH=$KEY_PATH"
+            echo "APPLE_API_ISSUER=$APPLE_API_ISSUER"
+            echo "APPLE_API_KEY=$APPLE_API_KEY"
+          } >> "$GITHUB_ENV"
+
       - name: Build (Tauri release, universal DMG)
-        # Unsigned/ad-hoc build: no Apple Developer cert in CI, so sign ad-hoc ("-") and skip
-        # notarization. macOS will warn on first open (right-click → Open) until a stable Developer
-        # ID signs it; the Accessibility grant also re-prompts per build without a stable identity.
+        # Signs + notarizes with a stable Developer ID when the secrets are set (APPLE_API_* come
+        # from the step above); otherwise ad-hoc ("-") with no notarization — a working DMG that
+        # Gatekeeper warns about on first open.
         run: npm run tauri build -- --target universal-apple-darwin --bundles dmg
         env:
-          APPLE_SIGNING_IDENTITY: "-"
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
 
       - name: Collect the DMG
         run: |

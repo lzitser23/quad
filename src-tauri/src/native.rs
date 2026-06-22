@@ -12,12 +12,21 @@ pub use win::spawn_worker;
 #[cfg(target_os = "macos")]
 pub fn spawn_worker() {
     use std::sync::atomic::Ordering;
-    std::thread::spawn(|| loop {
-        let id = crate::winmgr::foreground_other_app();
-        if id != 0 {
-            crate::state::shared().last_active.store(id, Ordering::Relaxed);
+    std::thread::spawn(|| {
+        let mut last_trust: Option<bool> = None;
+        loop {
+            let id = crate::winmgr::foreground_other_app();
+            if id != 0 {
+                crate::state::shared().last_active.store(id, Ordering::Relaxed);
+            }
+            // Reflect Accessibility-permission flips to the UI banner as soon as they happen.
+            let trust = crate::winmgr::accessibility_ok();
+            if last_trust != Some(trust) {
+                last_trust = Some(trust);
+                crate::ipc::emit_state();
+            }
+            std::thread::sleep(std::time::Duration::from_millis(300));
         }
-        std::thread::sleep(std::time::Duration::from_millis(200));
     });
 }
 

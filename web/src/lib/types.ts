@@ -27,6 +27,7 @@ export interface AppState {
   failedCount: number;
   settingsPath: string;
   logPath: string;
+  accessibilityOk: boolean;
 }
 
 export interface ApplyResult {

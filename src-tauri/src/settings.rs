@@ -130,14 +130,6 @@ fn set_autostart(enable: bool) {
 #[cfg(not(any(windows, target_os = "macos")))]
 fn set_autostart(_enable: bool) {}
 
-/// Verbose diagnostic logging for the macOS window-placement path. No-op elsewhere.
-#[cfg(target_os = "macos")]
-pub fn diag(msg: &str) {
-    log("DEBUG", msg);
-}
-#[cfg(not(target_os = "macos"))]
-pub fn diag(_msg: &str) {}
-
 pub fn log(level: &str, msg: &str) {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
