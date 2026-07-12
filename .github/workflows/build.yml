@@ -56,11 +56,110 @@ jobs:
           path: dist-portable/*
           if-no-files-found: error
 
+  mac:
+    runs-on: macos-latest
+    # "yes" once the Apple signing secrets are configured (see below). Until then the build is
+    # ad-hoc signed and unsigned-notarized — it still produces a working DMG, just with the
+    # Gatekeeper warning + per-build Accessibility re-prompt.
+    env:
+      SIGNED: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && 'yes' || 'no' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix web ci
+
+      - name: Test the pure engine
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      # ---- Signing (only when the Apple secrets are present) --------------------------------
+      # Import the Developer ID cert into a throwaway keychain so codesign can find it.
+      - name: Import Apple signing certificate
+        if: env.SIGNED == 'yes'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
+          security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_CERTIFICATE_PASSWORD" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain
+          rm "$RUNNER_TEMP/certificate.p12"
+
+      # Materialize the App Store Connect API key (.p8) and expose the notarization vars — but only
+      # in the signed path, so unsigned builds don't hand Tauri blank credentials.
+      - name: Prepare notarization API key
+        if: env.SIGNED == 'yes'
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$KEY_PATH"
+          {
+            echo "APPLE_API_KEY_PATH=$KEY_PATH"
+            echo "APPLE_API_ISSUER=$APPLE_API_ISSUER"
+            echo "APPLE_API_KEY=$APPLE_API_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Build (Tauri release, universal DMG)
+        # Signs + notarizes with a stable Developer ID when the secrets are set (APPLE_API_* come
+        # from the step above); otherwise ad-hoc ("-") with no notarization — a working DMG that
+        # Gatekeeper warns about on first open.
+        run: npm run tauri build -- --target universal-apple-darwin --bundles dmg
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
+
+      - name: Collect the DMG
+        run: |
+          mkdir -p dist-mac
+          cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg dist-mac/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quad-macos
+          path: dist-mac/*
+          if-no-files-found: error
+
+  release:
+    needs: [portable, mac]
+    # Publish whatever built, even if one platform failed — so a macOS break can't hold up the
+    # Windows release (and vice versa). Skipped only on cancellation or off-main builds.
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
       - name: Publish rolling "latest" release
-        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Quad — latest build from main
           prerelease: true
-          files: dist-portable/*
+          files: dist/**/*

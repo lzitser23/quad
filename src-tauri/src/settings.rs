@@ -30,8 +30,12 @@ impl Default for Settings {
 }
 
 pub fn dir() -> PathBuf {
-    let base = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
-    PathBuf::from(base).join("Quad")
+    #[cfg(windows)]
+    let root = PathBuf::from(std::env::var("APPDATA").unwrap_or_else(|_| ".".into()));
+    #[cfg(not(windows))]
+    let root = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()))
+        .join("Library/Application Support");
+    root.join("Quad")
 }
 pub fn settings_path() -> PathBuf {
     dir().join("settings.json")
@@ -76,6 +80,7 @@ impl Settings {
     }
 }
 
+#[cfg(windows)]
 fn set_autostart(enable: bool) {
     use winreg::enums::*;
     use winreg::RegKey;
@@ -90,6 +95,40 @@ fn set_autostart(enable: bool) {
         }
     }
 }
+
+/// macOS "start at login": a per-user LaunchAgent plist that relaunches the bundled binary.
+#[cfg(target_os = "macos")]
+fn set_autostart(enable: bool) {
+    let home = match std::env::var("HOME") {
+        Ok(h) => h,
+        Err(_) => return,
+    };
+    let agents = PathBuf::from(&home).join("Library/LaunchAgents");
+    let plist = agents.join("io.github.lzitser23.quad.plist");
+    if enable {
+        if let Ok(exe) = std::env::current_exe() {
+            let _ = std::fs::create_dir_all(&agents);
+            let contents = format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+                 <plist version=\"1.0\">\n\
+                 <dict>\n\
+                 \t<key>Label</key>\n\t<string>io.github.lzitser23.quad</string>\n\
+                 \t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>{}</string>\n\t</array>\n\
+                 \t<key>RunAtLoad</key>\n\t<true/>\n\
+                 </dict>\n\
+                 </plist>\n",
+                exe.display()
+            );
+            let _ = std::fs::write(&plist, contents);
+        }
+    } else {
+        let _ = std::fs::remove_file(&plist);
+    }
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn set_autostart(_enable: bool) {}
 
 pub fn log(level: &str, msg: &str) {
     let secs = SystemTime::now()
