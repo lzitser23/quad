@@ -107,27 +107,25 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN" login.keychain
           rm "$RUNNER_TEMP/certificate.p12"
 
-      # Materialize the App Store Connect API key (.p8) and expose the notarization vars — but only
-      # in the signed path, so unsigned builds don't hand Tauri blank credentials.
-      - name: Prepare notarization API key
+      # Expose the Apple ID notarization credentials — but only in the signed path, so unsigned
+      # builds don't hand Tauri blank credentials.
+      - name: Prepare notarization credentials
         if: env.SIGNED == 'yes'
         env:
-          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
-          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$KEY_PATH"
           {
-            echo "APPLE_API_KEY_PATH=$KEY_PATH"
-            echo "APPLE_API_ISSUER=$APPLE_API_ISSUER"
-            echo "APPLE_API_KEY=$APPLE_API_KEY"
+            echo "APPLE_ID=$APPLE_ID"
+            echo "APPLE_PASSWORD=$APPLE_PASSWORD"
+            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
           } >> "$GITHUB_ENV"
 
       - name: Build (Tauri release, universal DMG)
-        # Signs + notarizes with a stable Developer ID when the secrets are set (APPLE_API_* come
-        # from the step above); otherwise ad-hoc ("-") with no notarization — a working DMG that
-        # Gatekeeper warns about on first open.
+        # Signs + notarizes with a stable Developer ID when the secrets are set (APPLE_ID /
+        # APPLE_PASSWORD / APPLE_TEAM_ID come from the step above); otherwise ad-hoc ("-") with no
+        # notarization — a working DMG that Gatekeeper warns about on first open.
         run: npm run tauri build -- --target universal-apple-darwin --bundles dmg
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
