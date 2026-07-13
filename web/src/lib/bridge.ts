@@ -69,6 +69,7 @@ export const api = {
   openLog: () => cmd("open_log", undefined, () => undefined),
   openSettingsFile: () => cmd("open_settings_file", undefined, () => undefined),
   quit: () => cmd("quit_app", undefined, () => undefined),
+  requestAccessibility: () => cmd("request_accessibility", undefined, () => undefined),
 
   // Custom window chrome → Tauri window API
   windowMinimize: () => (isTauri() ? getCurrentWindow().minimize() : Promise.resolve()),
@@ -109,6 +110,7 @@ function mockState(): AppState {
     failedCount: 0,
     settingsPath: "%APPDATA%\\Quad\\settings.json",
     logPath: "%APPDATA%\\Quad\\quad.log",
+    accessibilityOk: true,
   };
   return mock;
 }

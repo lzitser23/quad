@@ -64,6 +64,22 @@ export default function App() {
         </div>
       </header>
 
+      {state && !state.accessibilityOk && (
+        <div className="flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-6 py-2 text-[11px] text-amber-300">
+          <span>
+            Quad needs Accessibility permission to move windows. Enable Quad under System Settings →
+            Privacy &amp; Security → Accessibility, then relaunch.
+          </span>
+          <button
+            type="button"
+            onClick={() => api.requestAccessibility()}
+            className="shrink-0 rounded-md border border-amber-400/40 px-2 py-1 font-medium text-amber-200 transition-colors hover:bg-amber-500/20"
+          >
+            Open Settings
+          </button>
+        </div>
+      )}
+
       <main className="relative flex-1 overflow-y-auto">
         {!state ? (
           <Loading />
