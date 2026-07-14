@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, onEvent, watchMaximized } from "./lib/bridge";
+import { checkForUpdate, dismissUpdate, type ReleaseUpdate } from "./lib/updateCheck";
 import type { AppState } from "./lib/types";
 import { Tabs, type TabItem } from "./components/aceternity/Tabs";
 import { Logo, Loading, Toast } from "./components/ui";
@@ -22,6 +23,7 @@ export default function App() {
   const [tab, setTab] = useState<TabId>("guide");
   const [maximized, setMaximized] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [update, setUpdate] = useState<ReleaseUpdate | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
@@ -33,6 +35,14 @@ export default function App() {
       offWin();
     };
   }, []);
+
+  // Once the running version is known, ask GitHub whether a newer release is
+  // out. Silent on every failure (offline, rate-limited, no releases yet).
+  const version = state?.version;
+  useEffect(() => {
+    if (!version) return;
+    checkForUpdate(version).then(setUpdate, () => {});
+  }, [version]);
 
   function notify(msg: string, ok = true) {
     setToast({ msg, ok });
@@ -57,6 +67,19 @@ export default function App() {
         </div>
 
         <div className="relative flex items-center gap-3">
+          {update && (
+            <button
+              className="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-[11px] text-accent transition-colors hover:bg-accent/20"
+              title="Open the release page"
+              onClick={() => {
+                dismissUpdate(update.version);
+                setUpdate(null);
+                api.openUrl(update.url);
+              }}
+            >
+              {update.version} available
+            </button>
+          )}
           <span className="pointer-events-none hidden text-[11px] text-muted-foreground lg:block">
             {state ? `v${state.version}` : "…"}
           </span>

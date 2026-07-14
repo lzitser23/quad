@@ -3,6 +3,7 @@ name: build
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -148,7 +149,7 @@ jobs:
     needs: [portable, mac]
     # Publish whatever built, even if one platform failed — so a macOS break can't hold up the
     # Windows release (and vice versa). Skipped only on cancellation or off-main builds.
-    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    if: ${{ !cancelled() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Download all build artifacts
@@ -157,9 +158,20 @@ jobs:
           path: dist
 
       - name: Publish rolling "latest" release
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Quad — latest build from main
           prerelease: true
+          files: dist/**/*
+
+      # Versioned releases drive the in-app update check, which reads the
+      # latest non-prerelease — the tag must match the tauri.conf.json version.
+      - name: Publish versioned release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Quad ${{ github.ref_name }}
+          generate_release_notes: true
           files: dist/**/*
