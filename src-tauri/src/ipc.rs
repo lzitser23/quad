@@ -214,6 +214,21 @@ pub fn open_settings_file() {
     open_path(settings::settings_path());
 }
 
+/// Open a web page in the default browser. Restricted to https so the
+/// frontend can't be tricked into launching arbitrary local programs.
+#[tauri::command]
+pub fn open_url(url: String) {
+    if !url.starts_with("https://") {
+        return;
+    }
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open").arg(&url).spawn();
+    #[cfg(not(target_os = "macos"))]
+    let _ = std::process::Command::new("cmd")
+        .args(["/C", "start", "", &url])
+        .spawn();
+}
+
 #[tauri::command]
 pub fn quit_app(app: AppHandle) {
     app.exit(0);

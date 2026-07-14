@@ -17,6 +17,7 @@ pub fn run() {
             ipc::apply_action,
             ipc::open_log,
             ipc::open_settings_file,
+            ipc::open_url,
             ipc::quit_app,
             ipc::request_accessibility
         ])

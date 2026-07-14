@@ -68,6 +68,10 @@ export const api = {
     cmd<ApplyResult>("apply_action", { action }, () => ({ ok: true, message: `(preview) ${action}` })),
   openLog: () => cmd("open_log", undefined, () => undefined),
   openSettingsFile: () => cmd("open_settings_file", undefined, () => undefined),
+  openUrl: (url: string) =>
+    cmd("open_url", { url }, () => {
+      window.open(url, "_blank");
+    }),
   quit: () => cmd("quit_app", undefined, () => undefined),
   requestAccessibility: () => cmd("request_accessibility", undefined, () => undefined),
 
