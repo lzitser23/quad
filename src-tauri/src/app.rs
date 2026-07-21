@@ -3,7 +3,7 @@
 
 use tauri::WindowEvent;
 
-use crate::{hotkeys, ipc, state, tray};
+use crate::{hotkeys, ipc, state, tray, update};
 
 pub fn run() {
     state::init();
@@ -19,7 +19,12 @@ pub fn run() {
             ipc::open_settings_file,
             ipc::open_url,
             ipc::quit_app,
-            ipc::request_accessibility
+            ipc::request_accessibility,
+            update::update_platform,
+            update::download_update,
+            update::extract_app_zip,
+            update::apply_update,
+            update::take_update_recovery_error
         ])
         .setup(|app| {
             // Quad is a tray utility — on macOS, drop the Dock icon and nudge the user to grant

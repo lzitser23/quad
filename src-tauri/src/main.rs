@@ -10,6 +10,7 @@ mod native;
 mod settings;
 mod state;
 mod tray;
+mod update;
 mod winmgr;
 
 fn main() {

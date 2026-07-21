@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, onEvent, watchMaximized } from "./lib/bridge";
 import { checkForUpdate, dismissUpdate, type ReleaseUpdate } from "./lib/updateCheck";
+import { downloadAndInstall, takeUpdateRecoveryError } from "./lib/updater";
 import type { AppState } from "./lib/types";
 import { Tabs, type TabItem } from "./components/aceternity/Tabs";
 import { Logo, Loading, Toast } from "./components/ui";
@@ -38,11 +39,41 @@ export default function App() {
 
   // Once the running version is known, ask GitHub whether a newer release is
   // out. Silent on every failure (offline, rate-limited, no releases yet).
+  // A failed swap from a previous update is the exception: reported once.
   const version = state?.version;
   useEffect(() => {
     if (!version) return;
+    void takeUpdateRecoveryError().then((error) => {
+      if (error) notify(error, false);
+    });
     checkForUpdate(version).then(setUpdate, () => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
+
+  // Progress text while a self-update runs; the pill shows it and goes inert.
+  const [updating, setUpdating] = useState<string | null>(null);
+  async function runSelfUpdate(u: ReleaseUpdate) {
+    if (!u.asset) return;
+    setUpdating("downloading…");
+    try {
+      await downloadAndInstall(u.asset, (p) => {
+        if (p.phase === "downloading") {
+          const pct = p.totalBytes
+            ? ` ${Math.round((p.downloadedBytes / p.totalBytes) * 100)}%`
+            : "";
+          setUpdating(`downloading…${pct}`);
+        } else if (p.phase === "verifying") {
+          setUpdating("verifying…");
+        } else {
+          setUpdating("restarting…");
+        }
+      });
+      // On success apply_update exits the app — anything after is failure-only.
+    } catch (e) {
+      setUpdating(null);
+      notify(`Update failed: ${String(e)}`, false);
+    }
+  }
 
   function notify(msg: string, ok = true) {
     setToast({ msg, ok });
@@ -69,15 +100,20 @@ export default function App() {
         <div className="relative flex items-center gap-3">
           {update && (
             <button
-              className="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-[11px] text-accent transition-colors hover:bg-accent/20"
-              title="Open the release page"
+              className="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-[11px] text-accent transition-colors hover:bg-accent/20 disabled:pointer-events-none"
+              title={update.asset ? "Download and install the update" : "Open the release page"}
+              disabled={updating !== null}
               onClick={() => {
                 dismissUpdate(update.version);
-                setUpdate(null);
-                api.openUrl(update.url);
+                if (update.asset) {
+                  void runSelfUpdate(update);
+                } else {
+                  setUpdate(null);
+                  api.openUrl(update.url);
+                }
               }}
             >
-              {update.version} available
+              {updating ?? `${update.version} available`}
             </button>
           )}
           <span className="pointer-events-none hidden text-[11px] text-muted-foreground lg:block">

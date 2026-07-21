@@ -127,14 +127,17 @@ jobs:
         # Signs + notarizes with a stable Developer ID when the secrets are set (APPLE_ID /
         # APPLE_PASSWORD / APPLE_TEAM_ID come from the step above); otherwise ad-hoc ("-") with no
         # notarization — a working DMG that Gatekeeper warns about on first open.
-        run: npm run tauri build -- --target universal-apple-darwin --bundles dmg
+        run: npm run tauri build -- --target universal-apple-darwin --bundles app,dmg
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
 
-      - name: Collect the DMG
+      - name: Collect the DMG and the updater app bundle
+        # The self-updater downloads the bare (signed) app bundle; it never gets
+        # a quarantine attribute, so the zip needs no separate notarization.
         run: |
           mkdir -p dist-mac
           cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg dist-mac/
+          ditto -c -k --keepParent "src-tauri/target/universal-apple-darwin/release/bundle/macos/Quad.app" dist-mac/quad-macos-universal.app.zip
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -154,6 +157,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
+
+      # The .sha256 sidecars are what the in-app updater verifies downloads
+      # against; missing pieces are skipped so one platform's failure doesn't
+      # block the other's release.
+      - name: Generate updater checksums
+        run: |
+          if [ -f dist/quad-windows/quad.exe ]; then
+            (cd dist/quad-windows && sha256sum quad.exe > quad.exe.sha256)
+          fi
+          if [ -f dist/quad-macos/quad-macos-universal.app.zip ]; then
+            (cd dist/quad-macos && sha256sum quad-macos-universal.app.zip > quad-macos-universal.app.zip.sha256)
+          fi
 
       - name: Publish rolling "latest" release
         if: github.ref == 'refs/heads/main'
