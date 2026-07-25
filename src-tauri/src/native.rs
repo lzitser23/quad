@@ -9,6 +9,16 @@ pub use win::spawn_worker;
 
 /// macOS: poll the frontmost (non-Quad) window so `last_active` tracks the user's target, the way
 /// the Windows foreground hook does. Drag-snap is not available.
+///
+/// Why a 300 ms poll rather than an event source: this loop watches two things, and only one of
+/// them has an event to subscribe to. Foreground changes *do* have one
+/// (`NSWorkspaceDidActivateApplicationNotification`), but Accessibility-trust flips do **not** — the
+/// OS exposes no notification for the user toggling Quad in the Accessibility pane, so that state
+/// has to be sampled regardless. Rather than run a Cocoa observer *and* a poll, we keep one cheap
+/// poll doing both. The interval also bounds how stale the click-to-apply target can be (≤300 ms),
+/// and off a real foreground change the two reads are trivial, so idle cost is negligible. If a
+/// future revision needs sub-frame foreground latency, add an `NSWorkspace` observer for the
+/// foreground half and keep this poll only for the trust check.
 #[cfg(target_os = "macos")]
 pub fn spawn_worker() {
     use std::sync::atomic::Ordering;
