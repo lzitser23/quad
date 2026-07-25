@@ -69,6 +69,8 @@ fn as_cftype<T: AsRef<CFType>>(v: &T) -> &CFType {
 /// AX application element for a pid. Bounds the per-message wait so a hung target app can't
 /// freeze the hotkey thread.
 fn ax_app(pid: i32) -> CFRetained<AXUIElement> {
+    // SAFETY: new_application accepts any pid and returns an owned (+1) AX element; set_messaging_timeout
+    // just configures that element. Neither dereferences foreign memory.
     let el = unsafe { AXUIElement::new_application(pid as libc::pid_t) };
     unsafe { el.set_messaging_timeout(0.25) };
     el
@@ -86,6 +88,8 @@ extern "C" {
 /// non-standard window). `0` degrades gracefully to the old per-app identity.
 fn cg_window_id(win: &AXUIElement) -> u32 {
     let mut id: u32 = 0;
+    // SAFETY: `win` is a live AX window element (thin CF pointer) and `id` is a valid u32 out-param,
+    // exactly the `(AXUIElementRef, CGWindowID*)` the symbol expects; it only writes `id`.
     let err = unsafe { _AXUIElementGetWindow(win as *const AXUIElement, &mut id) };
     if err == 0 {
         id
@@ -107,8 +111,13 @@ fn ax_focused_window(pid: i32) -> Option<CFRetained<AXUIElement>> {
 fn copy_attr_as<T: Type>(el: &AXUIElement, attr: &'static str) -> Option<CFRetained<T>> {
     let key = cfstr(attr);
     let mut out: *const CFType = std::ptr::null();
+    // SAFETY: `key` is a live CFString and `&mut out` is a valid out-pointer for the CFTypeRef the AX
+    // API writes on success (leaving it null on failure, which we check).
     let err = unsafe { el.copy_attribute_value(&key, NonNull::from(&mut out)) };
     if err == AXError::Success && !out.is_null() {
+        // SAFETY: on Success `out` is a non-null, +1-retained CFType we now own; from_raw adopts that
+        // reference. cast_unchecked is sound because callers request `T` only for attributes AX
+        // documents as that CF type (AXUIElement for AXFocusedWindow, AXValue for AXPosition/AXSize).
         let cf = unsafe { CFRetained::from_raw(NonNull::new(out as *mut CFType)?) };
         Some(unsafe { CFRetained::cast_unchecked::<T>(cf) })
     } else {
@@ -119,6 +128,8 @@ fn copy_attr_as<T: Type>(el: &AXUIElement, attr: &'static str) -> Option<CFRetai
 fn read_ax_point(win: &AXUIElement, attr: &'static str) -> Option<CGPoint> {
     let val = copy_attr_as::<AXValue>(win, attr)?;
     let mut p = CGPoint { x: 0.0, y: 0.0 };
+    // SAFETY: the out-pointer targets our stack CGPoint, matching the requested CGPoint value type;
+    // AXValueGetValue writes it only when the stored type matches (returns false otherwise).
     let ok = unsafe {
         val.value(
             AXValueType::CGPoint,
@@ -131,6 +142,8 @@ fn read_ax_point(win: &AXUIElement, attr: &'static str) -> Option<CGPoint> {
 fn read_ax_size(win: &AXUIElement, attr: &'static str) -> Option<CGSize> {
     let val = copy_attr_as::<AXValue>(win, attr)?;
     let mut s = CGSize { width: 0.0, height: 0.0 };
+    // SAFETY: the out-pointer targets our stack CGSize, matching the requested CGSize value type;
+    // AXValueGetValue writes it only when the stored type matches (returns false otherwise).
     let ok = unsafe {
         val.value(
             AXValueType::CGSize,
@@ -141,6 +154,9 @@ fn read_ax_size(win: &AXUIElement, attr: &'static str) -> Option<CGSize> {
 }
 
 fn set_ax_value(win: &AXUIElement, attr: &'static str, ty: AXValueType, ptr: *mut c_void) {
+    // SAFETY: `ptr` points at a live value of the CG type named by `ty` (callers pass a matching
+    // CGSize/CGPoint), so AXValueCreate reads exactly `ty`'s bytes; set_attribute_value takes the
+    // owned CFType we built.
     let Some(v) = (unsafe { AXValue::new(ty, NonNull::new(ptr).unwrap()) }) else {
         return;
     };
@@ -151,6 +167,7 @@ fn set_ax_value(win: &AXUIElement, attr: &'static str, ty: AXValueType, ptr: *mu
 fn set_ax_bool(win: &AXUIElement, attr: &'static str, b: bool) {
     let key = cfstr(attr);
     let v = CFBoolean::new(b);
+    // SAFETY: `key` and `v` are live CF objects; set_attribute_value only reads them.
     let _ = unsafe { win.set_attribute_value(&key, as_cftype(&v)) };
 }
 
@@ -203,6 +220,8 @@ pub fn all_monitors() -> Vec<Monitor> {
 
     let mut ids = [0u32; 16];
     let mut count: u32 = 0;
+    // SAFETY: `ids` is a 16-slot buffer whose length we pass as the cap, and `&mut count` receives the
+    // written count — exactly CGGetActiveDisplayList's contract; it writes at most `ids.len()` entries.
     let err = unsafe { CGGetActiveDisplayList(ids.len() as u32, ids.as_mut_ptr(), &mut count) };
     if err != CGError::Success {
         return Vec::new();
@@ -313,6 +332,8 @@ pub fn set_foreground(id: WinId) {
     if let Some(win) = ax_focused_window(pid) {
         set_ax_bool(&win, AX_MAIN, true); // may fail on non-standard windows — ignored
         let key = cfstr(AX_RAISE_ACTION);
+        // SAFETY: `win` is a live AX window element and `key` a live CFString naming the action;
+        // perform_action only reads them.
         let _ = unsafe { win.perform_action(&key) };
     }
 }
@@ -375,6 +396,7 @@ pub fn show_task_view() {
 /// Whether this process is trusted for the Accessibility API (required to move other apps'
 /// windows). Wired into startup in `app.rs`.
 pub fn ax_trusted() -> bool {
+    // SAFETY: AXIsProcessTrusted takes no arguments and returns a plain bool.
     unsafe { AXIsProcessTrusted() }
 }
 

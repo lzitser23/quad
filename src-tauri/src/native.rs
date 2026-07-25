@@ -70,15 +70,21 @@ mod win {
     const TIMER_ID: usize = 0xC0DE;
 
     unsafe extern "system" fn overlay_wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
+        // SAFETY: the OS calls this with valid window-proc arguments; DefWindowProcW forwards them
+        // unchanged for default handling.
         DefWindowProcW(hwnd, msg, wp, lp)
     }
 
     pub fn spawn_worker() {
+        // SAFETY: worker_main owns every Win32 object it creates and runs entirely on this thread.
         std::thread::spawn(|| unsafe {
             worker_main();
         });
     }
 
+    /// # Safety
+    /// Must run on a dedicated thread that owns the message loop; it registers a window class,
+    /// creates the overlay window, and installs WinEvent hooks that dispatch on this thread.
     unsafe fn worker_main() {
         let hmod = GetModuleHandleW(None).unwrap_or_default();
         let hinst: HINSTANCE = hmod.into();
@@ -157,6 +163,9 @@ mod win {
         _thread: u32,
         _time: u32,
     ) {
+        // SAFETY: invoked by the OS WinEvent dispatch with valid arguments; the HWND is null-checked
+        // below and every winmgr call it reaches tolerates a stale HWND. The timer/overlay calls
+        // touch only handles owned by this worker thread.
         if idobject != OBJID_WINDOW.0 || hwnd.0.is_null() {
             return;
         }
@@ -190,6 +199,9 @@ mod win {
         }
     }
 
+    /// # Safety
+    /// Calls into `show_overlay`/`hide_overlay`, which touch the overlay window handle owned by the
+    /// worker thread; must run on that thread.
     unsafe fn update_preview(s: &Shared) {
         if s.drag_hwnd.load(Ordering::Relaxed) == 0 {
             return;
@@ -217,6 +229,8 @@ mod win {
         if overlay.0.is_null() {
             return;
         }
+        // SAFETY: `overlay` is the null-checked handle to the worker-owned overlay window; SetWindowPos
+        // only repositions it.
         let _ = SetWindowPos(
             overlay,
             HWND_TOPMOST,
@@ -231,6 +245,7 @@ mod win {
     unsafe fn hide_overlay(s: &Shared) {
         let overlay = HWND(s.overlay.load(Ordering::Relaxed) as *mut c_void);
         if !overlay.0.is_null() {
+            // SAFETY: `overlay` is the null-checked handle to the worker-owned overlay window.
             let _ = ShowWindow(overlay, SW_HIDE);
         }
     }
