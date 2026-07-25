@@ -12,11 +12,12 @@
 //! it is never stored; instead every call re-derives the focused window from the packed pid — which
 //! matches how the Windows backend always operates on the foreground window.
 //!
-//! KNOWN v1 LIMITATION: `foreground()` packs `cg_window_id = 0`, so a `WinId` is effectively
-//! per-*app*, not per-window. The `WindowManager`'s restore/last-applied maps therefore key on the
-//! app, so for an app with several windows the Restore action can carry one window's saved geometry
-//! to another. Single-window-per-app (the common case) is correct. The fix is to mint the focused
-//! window's real `CGWindowID` into `cg_window_id` (the pack/unpack plumbing is already in place).
+//! Window identity: `foreground()` mints the focused window's real `CGWindowID` into `cg_window_id`
+//! (via `_AXUIElementGetWindow`), so a `WinId` is per-*window*, not per-*app*. This is what makes the
+//! `WindowManager`'s restore/last-applied maps key on the individual window: for an app with several
+//! windows, Restore no longer carries one window's saved geometry to another. Every AX operation
+//! still resolves through `AXFocusedWindow(pid)`, which is correct here because Quad only ever acts
+//! on the currently-focused window — the same window whose `CGWindowID` produced the key.
 
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -71,6 +72,26 @@ fn ax_app(pid: i32) -> CFRetained<AXUIElement> {
     let el = unsafe { AXUIElement::new_application(pid as libc::pid_t) };
     unsafe { el.set_messaging_timeout(0.25) };
     el
+}
+
+// `_AXUIElementGetWindow(element, out)` maps an AX window element to its CoreGraphics window id.
+// It is an undocumented-but-ABI-stable HIServices symbol (the same one Rectangle, yabai, and
+// Amethyst rely on); there is no public API that yields a window's `CGWindowID` from AX. Signature:
+// `AXError _AXUIElementGetWindow(AXUIElementRef, CGWindowID *)`.
+extern "C" {
+    fn _AXUIElementGetWindow(element: *const AXUIElement, out: *mut u32) -> i32;
+}
+
+/// The `CGWindowID` backing an AX window element, or `0` if the private symbol declines (e.g. a
+/// non-standard window). `0` degrades gracefully to the old per-app identity.
+fn cg_window_id(win: &AXUIElement) -> u32 {
+    let mut id: u32 = 0;
+    let err = unsafe { _AXUIElementGetWindow(win as *const AXUIElement, &mut id) };
+    if err == 0 {
+        id
+    } else {
+        0
+    }
 }
 
 /// The focused window element of the app owning `pid`, or `None` if AX is denied / no window.
@@ -305,8 +326,10 @@ pub fn foreground() -> WinId {
     if pid <= 0 {
         return 0;
     }
-    // cg_win is identity-only for our usage; the element is re-derived from the pid each call.
-    pack(pid, 0)
+    // Mint the focused window's real CGWindowID so the WinId is per-window (see module docs). The
+    // element itself is re-derived from the pid on each call; only the id travels in the WinId.
+    let cg_win = ax_focused_window(pid).map(|w| cg_window_id(&w)).unwrap_or(0);
+    pack(pid, cg_win)
 }
 
 /// The frontmost window, but only if it belongs to another process. Used by the macOS worker to
