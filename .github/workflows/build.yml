@@ -16,6 +16,10 @@ concurrency:
 jobs:
   portable:
     runs-on: windows-latest
+    # "yes" once the Authenticode secrets are configured. Until then the binaries are unsigned — a
+    # working exe/installer that SmartScreen warns about on first run.
+    env:
+      SIGNED: ${{ secrets.WINDOWS_CERTIFICATE != '' && 'yes' || 'no' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +46,32 @@ jobs:
 
       - name: Build (Tauri release)
         run: npm run tauri build
+
+      # ---- Signing (only when the Windows cert secrets are present) --------------------------
+      # Authenticode-sign the portable exe + installer so SmartScreen trusts them. Skipped (unsigned)
+      # until WINDOWS_CERTIFICATE (base64 .pfx) / WINDOWS_CERTIFICATE_PASSWORD are configured — no
+      # cert is committed. Mirrors the mac job's secret-gated signing.
+      - name: Sign the Windows binaries
+        if: env.SIGNED == 'yes'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "code-sign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $signtool = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found on the runner" }
+          $targets = @("src-tauri/target/release/quad.exe")
+          $targets += (Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" -ErrorAction SilentlyContinue |
+            ForEach-Object FullName)
+          foreach ($t in $targets) {
+            & $signtool.FullName sign /f $pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD `
+              /fd sha256 /tr http://timestamp.digicert.com /td sha256 $t
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed on $t" }
+          }
+          Remove-Item $pfx -Force
 
       - name: Collect the portable + installer
         shell: pwsh

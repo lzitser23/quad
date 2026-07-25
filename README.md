@@ -11,6 +11,7 @@
 <p align="center">
   <a href="#features">Features</a> |
   <a href="#installation">Installation</a> |
+  <a href="#signing">Signing</a> |
   <a href="#quick-start">Quick Start</a> |
   <a href="#development">Development</a> |
   <a href="#architecture">Architecture</a>
@@ -70,6 +71,33 @@ To move other apps' windows, macOS requires **Accessibility** permission: on fir
 ### Build from source
 
 See [Development](#development).
+
+---
+
+## Signing
+
+Release binaries are **unsigned by default**: CI produces working artifacts with no (Windows) / ad-hoc
+(macOS) signature, so first-run OS warnings are expected. Signing turns on automatically once the
+maintainer adds the corresponding repository secrets — no code changes needed.
+
+### Windows (Authenticode)
+
+Set `WINDOWS_CERTIFICATE` (a base64-encoded `.pfx`) and `WINDOWS_CERTIFICATE_PASSWORD`. When present,
+CI Authenticode-signs the portable `quad.exe` and the NSIS installer (SHA-256, RFC-3161 timestamped),
+so SmartScreen stops warning. Without them the binaries ship unsigned — choose **More info → Run
+anyway**.
+
+> The workflow signs the two artifacts users download and launch (the portable exe and the installer).
+> The `quad.exe` the installer unpacks is signed at build time only if you additionally configure
+> Tauri's own `bundle.windows` signing. An Authenticode or Azure Trusted Signing certificate must be
+> procured separately — none is committed to the repo.
+
+### macOS (Developer ID + notarization)
+
+Set `APPLE_SIGNING_IDENTITY`, `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`,
+`APPLE_PASSWORD`, and `APPLE_TEAM_ID`. When present, CI signs with your Developer ID and notarizes the
+DMG; otherwise the build is ad-hoc-signed and Gatekeeper warns on first launch (see
+[Installation](#installation)).
 
 ---
 
