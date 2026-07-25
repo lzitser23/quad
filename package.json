@@ -1,7 +1,7 @@
 {
   "name": "quad",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Rectangle-style window tiling for Windows (Tauri)",
   "license": "MIT",
   "scripts": {
