@@ -42,6 +42,9 @@ impl From<RECT> for Rect {
 // ---- Monitors ---------------------------------------------------------------
 
 unsafe extern "system" fn enum_proc(hmon: HMONITOR, _hdc: HDC, _rc: *mut RECT, data: LPARAM) -> BOOL {
+    // SAFETY: `data` is the LPARAM `all_monitors` handed to EnumDisplayMonitors — a `*mut Vec<Monitor>`
+    // pointing at a stack local that outlives this synchronous enumeration. `hmon` is a live monitor
+    // handle supplied by the OS, so `query_monitor` may query it.
     let vec = &mut *(data.0 as *mut Vec<Monitor>);
     if let Some(m) = query_monitor(hmon) {
         vec.push(m);
@@ -49,9 +52,13 @@ unsafe extern "system" fn enum_proc(hmon: HMONITOR, _hdc: HDC, _rc: *mut RECT, d
     TRUE
 }
 
+/// # Safety
+/// `hmon` must be a valid `HMONITOR` as delivered by the Win32 monitor-enumeration APIs.
 unsafe fn query_monitor(hmon: HMONITOR) -> Option<Monitor> {
     let mut mi = MONITORINFOEXW::default();
     mi.monitorInfo.cbSize = size_of::<MONITORINFOEXW>() as u32;
+    // SAFETY: `mi` is a correctly-sized MONITORINFOEXW with `cbSize` set; GetMonitorInfoW fills it in
+    // place for the valid `hmon`.
     if GetMonitorInfoW(hmon, &mut mi.monitorInfo as *mut MONITORINFO).as_bool() {
         Some(Monitor {
             handle: hmon.0 as isize,
@@ -66,6 +73,8 @@ unsafe fn query_monitor(hmon: HMONITOR) -> Option<Monitor> {
 
 pub fn all_monitors() -> Vec<Monitor> {
     let mut v: Vec<Monitor> = Vec::new();
+    // SAFETY: `enum_proc` matches the EnumDisplayMonitors callback ABI; the LPARAM carries `&mut v`,
+    // a local that lives for the whole synchronous call.
     unsafe {
         let _ = EnumDisplayMonitors(
             HDC::default(),
@@ -79,6 +88,8 @@ pub fn all_monitors() -> Vec<Monitor> {
 }
 
 pub fn monitor_from_window(id: WinId) -> Monitor {
+    // SAFETY: MonitorFromWindow tolerates any HWND (it returns the nearest monitor); the resulting
+    // HMONITOR is valid input for query_monitor.
     unsafe {
         let h = MonitorFromWindow(hwnd(id), MONITOR_DEFAULTTONEAREST);
         query_monitor(h).unwrap_or_else(super::primary_monitor)
@@ -86,6 +97,8 @@ pub fn monitor_from_window(id: WinId) -> Monitor {
 }
 
 pub fn monitor_from_point(pt: Point) -> Monitor {
+    // SAFETY: MonitorFromPoint accepts any POINT; the returned HMONITOR is null-checked before it
+    // reaches query_monitor.
     unsafe {
         let h = MonitorFromPoint(POINT { x: pt.x, y: pt.y }, MONITOR_DEFAULTTONEAREST);
         if h.0.is_null() {
@@ -98,6 +111,9 @@ pub fn monitor_from_point(pt: Point) -> Monitor {
 // ---- Window inspection ------------------------------------------------------
 
 pub fn is_manageable(id: WinId) -> bool {
+    // SAFETY: every call here is a read-only Win32 query that tolerates an arbitrary or stale HWND
+    // (guarded by the IsWindow check first); the out-params (`cloaked`, `buf`) are correctly-sized
+    // stack locals and no pointer we pass outlives the call.
     unsafe {
         let h = hwnd(id);
         if h.0.is_null() {
@@ -139,6 +155,9 @@ pub fn is_manageable(id: WinId) -> bool {
 }
 
 pub fn visible_rect(id: WinId) -> Rect {
+    // SAFETY: DwmGetWindowAttribute / GetWindowRect only read window state for `h` into stack RECTs
+    // (sizes passed match `size_of::<RECT>()`); both tolerate an invalid HWND by returning an error
+    // we handle via the fallback.
     unsafe {
         let h = hwnd(id);
         let mut r = RECT::default();
@@ -161,6 +180,9 @@ pub fn visible_rect(id: WinId) -> Rect {
 /// Position a window so its *visible* frame occupies `target`, compensating for the DWM
 /// invisible resize border.
 pub fn apply_visible_rect(id: WinId, target: Rect) {
+    // SAFETY: all calls read or reposition window `h`; the RECT out-params are correctly-sized stack
+    // locals, and every call (ShowWindow / GetWindowRect / DwmGetWindowAttribute / SetWindowPos)
+    // tolerates an invalid HWND by failing, which is harmless here.
     unsafe {
         let h = hwnd(id);
         if IsZoomed(h).as_bool() {
@@ -204,17 +226,20 @@ pub fn apply_visible_rect(id: WinId, target: Rect) {
 }
 
 pub fn set_foreground(id: WinId) {
+    // SAFETY: SetForegroundWindow accepts any HWND and returns a status we ignore.
     unsafe {
         let _ = SetForegroundWindow(hwnd(id));
     }
 }
 
 pub fn foreground() -> WinId {
+    // SAFETY: GetForegroundWindow takes no arguments and returns a valid-or-null HWND.
     unsafe { GetForegroundWindow().0 as isize }
 }
 
 pub fn cursor_pos() -> Point {
     let mut p = POINT::default();
+    // SAFETY: GetCursorPos writes the cursor position into our correctly-sized stack POINT.
     unsafe {
         let _ = GetCursorPos(&mut p);
     }
@@ -249,6 +274,8 @@ pub fn show_task_view() {
         mk(VK_TAB, true),
         mk(VK_LWIN, true),
     ];
+    // SAFETY: `inputs` is a live slice of fully-initialised INPUT records and the cbSize argument
+    // matches `size_of::<INPUT>()`, as SendInput requires.
     unsafe {
         SendInput(&inputs, size_of::<INPUT>() as i32);
     }

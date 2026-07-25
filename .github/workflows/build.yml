@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -14,8 +16,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  portable:
+  # Fast PR signal: run the engine's unit tests without the full release build / bundle / sign.
+  test:
+    if: github.event_name == 'pull_request'
     runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Test the pure engine
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  portable:
+    # Heavy release build runs on push / tags / manual dispatch — PRs get the cheap `test` job above.
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    # "yes" once the Authenticode secrets are configured. Until then the binaries are unsigned — a
+    # working exe/installer that SmartScreen warns about on first run.
+    env:
+      SIGNED: ${{ secrets.WINDOWS_CERTIFICATE != '' && 'yes' || 'no' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +69,32 @@ jobs:
       - name: Build (Tauri release)
         run: npm run tauri build
 
+      # ---- Signing (only when the Windows cert secrets are present) --------------------------
+      # Authenticode-sign the portable exe + installer so SmartScreen trusts them. Skipped (unsigned)
+      # until WINDOWS_CERTIFICATE (base64 .pfx) / WINDOWS_CERTIFICATE_PASSWORD are configured — no
+      # cert is committed. Mirrors the mac job's secret-gated signing.
+      - name: Sign the Windows binaries
+        if: env.SIGNED == 'yes'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "code-sign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $signtool = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found on the runner" }
+          $targets = @("src-tauri/target/release/quad.exe")
+          $targets += (Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" -ErrorAction SilentlyContinue |
+            ForEach-Object FullName)
+          foreach ($t in $targets) {
+            & $signtool.FullName sign /f $pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD `
+              /fd sha256 /tr http://timestamp.digicert.com /td sha256 $t
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed on $t" }
+          }
+          Remove-Item $pfx -Force
+
       - name: Collect the portable + installer
         shell: pwsh
         run: |
@@ -58,6 +110,8 @@ jobs:
           if-no-files-found: error
 
   mac:
+    # Heavy release build runs on push / tags / manual dispatch — PRs get the cheap `test` job above.
+    if: github.event_name != 'pull_request'
     runs-on: macos-latest
     # "yes" once the Apple signing secrets are configured (see below). Until then the build is
     # ad-hoc signed and unsigned-notarized — it still produces a working DMG, just with the

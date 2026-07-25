@@ -3,6 +3,7 @@ import { Toggle } from "../components/Toggle";
 import { HotkeyInput } from "../components/HotkeyInput";
 import { Button } from "../components/ui";
 import { api } from "../lib/bridge";
+import { IS_MAC } from "../lib/hotkeys";
 import type { AppState, SettingsPatch } from "../lib/types";
 
 export function Settings({
@@ -36,18 +37,24 @@ export function Settings({
     <div className="mx-auto max-w-4xl space-y-9 px-6 py-8">
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Behavior</h2>
-        <Toggle
-          checked={s.dragSnapEnabled}
-          onChange={(v) => patch({ dragSnapEnabled: v })}
-          label="Drag windows to screen edges to snap"
-          description="Edge → half, corner → quarter, top → maximize. Snaps on release."
-        />
-        <Toggle
-          checked={s.showSnapPreview}
-          onChange={(v) => patch({ showSnapPreview: v })}
-          label="Show the translucent snap preview"
-          description="Highlights where the window will land while you drag."
-        />
+        {/* Drag-to-snap is a Windows-only feature (no portable macOS equivalent), so hide its
+            controls on macOS where they'd be dead. */}
+        {!IS_MAC && (
+          <>
+            <Toggle
+              checked={s.dragSnapEnabled}
+              onChange={(v) => patch({ dragSnapEnabled: v })}
+              label="Drag windows to screen edges to snap"
+              description="Edge → half, corner → quarter, top → maximize. Snaps on release."
+            />
+            <Toggle
+              checked={s.showSnapPreview}
+              onChange={(v) => patch({ showSnapPreview: v })}
+              label="Show the translucent snap preview"
+              description="Highlights where the window will land while you drag."
+            />
+          </>
+        )}
         <Toggle
           checked={s.startWithWindows}
           onChange={(v) => patch({ startWithWindows: v })}
@@ -57,7 +64,10 @@ export function Settings({
 
       <section className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tuning</h2>
-        <Slider label="Snap edge sensitivity" suffix="px" min={5} max={60} value={s.snapEdgeThresholdPx} onCommit={(v) => patch({ snapEdgeThresholdPx: v })} />
+        {/* Snap-edge sensitivity only affects the Windows-only drag-to-snap feature. */}
+        {!IS_MAC && (
+          <Slider label="Snap edge sensitivity" suffix="px" min={5} max={60} value={s.snapEdgeThresholdPx} onCommit={(v) => patch({ snapEdgeThresholdPx: v })} />
+        )}
         <Slider label="Resize step (Make Larger / Smaller)" suffix="px" min={10} max={200} value={s.resizeStepPx} onCommit={(v) => patch({ resizeStepPx: v })} />
         <Slider label="Gap between tiled windows" suffix="px" min={0} max={40} value={s.gapPx} onCommit={(v) => patch({ gapPx: v })} />
       </section>

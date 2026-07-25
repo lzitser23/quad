@@ -5,19 +5,20 @@
 <h1 align="center">Quad</h1>
 
 <p align="center">
-  <strong>Rectangle for Windows — keyboard-driven window tiling.</strong>
+  <strong>Rectangle-style keyboard-driven window tiling for Windows and macOS.</strong>
 </p>
 
 <p align="center">
   <a href="#features">Features</a> |
   <a href="#installation">Installation</a> |
+  <a href="#signing">Signing</a> |
   <a href="#quick-start">Quick Start</a> |
   <a href="#development">Development</a> |
   <a href="#architecture">Architecture</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Windows-orange" alt="Platform: Windows" />
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-orange" alt="Platform: Windows | macOS" />
   <img src="https://img.shields.io/badge/Tauri-2-24C8DB" alt="Tauri 2" />
   <img src="https://img.shields.io/badge/Rust-engine-DEA584" alt="Rust engine" />
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React 18" />
@@ -29,9 +30,9 @@
 
 ## Overview
 
-**Quad** is a window tiler for Windows modeled on macOS [Rectangle](https://github.com/rxhanson/Rectangle): snap windows to halves, thirds, and quarters, maximize / center / restore, cycle sizes by repeating a shortcut, move windows across monitors, and drag a window to a screen edge to snap it.
+**Quad** is a keyboard-driven window tiler for **Windows and macOS**, modeled on macOS [Rectangle](https://github.com/rxhanson/Rectangle): snap windows to halves, thirds, and quarters, maximize / center / restore, cycle sizes by repeating a shortcut, move windows across monitors, and (on Windows) drag a window to a screen edge to snap it.
 
-The window-management engine is native **Rust** (Win32 via the `windows` crate; global hotkeys via `tauri-plugin-global-shortcut`). The app's window — a settings screen, a visual shortcut guide, click-to-apply layouts, and status — is a **React** UI rendered in WebView2 by **Tauri 2**. It lives in the system tray. Settings and the log live in `%APPDATA%\Quad\`.
+The window-management engine is native **Rust** — Win32 via the `windows` crate on Windows, the Accessibility / CoreGraphics / AppKit APIs on macOS — with global hotkeys via `tauri-plugin-global-shortcut`. The app's window — a settings screen, a visual shortcut guide, click-to-apply layouts, and status — is a **React** UI rendered by **Tauri 2** (WebView2 on Windows, WKWebView on macOS). It lives in the system tray / menu bar. Settings and the log live in `%APPDATA%\Quad\` on Windows and `~/Library/Application Support/Quad/` on macOS.
 
 ---
 
@@ -52,18 +53,51 @@ The window-management engine is native **Rust** (Win32 via the `windows` crate; 
 
 ### Download a build
 
-Every push to `main` builds a portable `quad.exe` and an installer via [GitHub Actions](https://github.com/lzitser23/quad/actions/workflows/build.yml) and publishes them to the [latest release](https://github.com/lzitser23/quad/releases/latest). They're also attached as artifacts on each workflow run.
+Every push to `main` builds the Windows portable / installer and the macOS universal DMG via [GitHub Actions](https://github.com/lzitser23/quad/actions/workflows/build.yml) and publishes them to the [latest release](https://github.com/lzitser23/quad/releases/latest). They're also attached as artifacts on each workflow run.
 
 | Platform | Asset | Notes |
 | --- | --- | --- |
 | Windows x64 | `quad.exe` | Portable — run it directly; it starts in the system tray. |
-| Windows x64 | `Quad_0.1.0_x64-setup.exe` | NSIS installer. |
+| Windows x64 | `Quad_<version>_x64-setup.exe` | NSIS installer. |
+| macOS (universal) | `Quad_<version>_universal.dmg` | Universal (Apple Silicon + Intel) disk image. |
+| macOS (universal) | `quad-macos-universal.app.zip` | Bare `.app` bundle — used by the in-app self-updater. |
 
-**Windows:** the binaries are **unsigned**, so SmartScreen may warn on first run — choose **More info → Run anyway**. Quad uses the Microsoft Edge **WebView2** runtime (preinstalled on Windows 11 and most updated Windows 10).
+**Windows:** the binaries are **unsigned** unless the maintainer has configured a code-signing certificate (see [Signing](#signing)), so SmartScreen may warn on first run — choose **More info → Run anyway**. Quad uses the Microsoft Edge **WebView2** runtime (preinstalled on Windows 11 and most updated Windows 10).
+
+**macOS:** open the `.dmg` and drag **Quad** to `/Applications`. Unless the build was signed and notarized with a Developer ID (see [Signing](#signing)), Gatekeeper warns on first launch — **right-click → Open**, then confirm, or run `xattr -dr com.apple.quarantine /Applications/Quad.app` to clear the quarantine flag.
+
+To move other apps' windows, macOS requires **Accessibility** permission: on first run Quad opens **System Settings → Privacy & Security → Accessibility** — enable **Quad** there, then **relaunch** the app (the permission only takes effect on a fresh launch). Until it's granted, Quad shows an in-app banner and its tiling actions no-op. macOS 11+ is required.
 
 ### Build from source
 
 See [Development](#development).
+
+---
+
+## Signing
+
+Release binaries are **unsigned by default**: CI produces working artifacts with no (Windows) / ad-hoc
+(macOS) signature, so first-run OS warnings are expected. Signing turns on automatically once the
+maintainer adds the corresponding repository secrets — no code changes needed.
+
+### Windows (Authenticode)
+
+Set `WINDOWS_CERTIFICATE` (a base64-encoded `.pfx`) and `WINDOWS_CERTIFICATE_PASSWORD`. When present,
+CI Authenticode-signs the portable `quad.exe` and the NSIS installer (SHA-256, RFC-3161 timestamped),
+so SmartScreen stops warning. Without them the binaries ship unsigned — choose **More info → Run
+anyway**.
+
+> The workflow signs the two artifacts users download and launch (the portable exe and the installer).
+> The `quad.exe` the installer unpacks is signed at build time only if you additionally configure
+> Tauri's own `bundle.windows` signing. An Authenticode or Azure Trusted Signing certificate must be
+> procured separately — none is committed to the repo.
+
+### macOS (Developer ID + notarization)
+
+Set `APPLE_SIGNING_IDENTITY`, `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`,
+`APPLE_PASSWORD`, and `APPLE_TEAM_ID`. When present, CI signs with your Developer ID and notarizes the
+DMG; otherwise the build is ad-hoc-signed and Gatekeeper warns on first launch (see
+[Installation](#installation)).
 
 ---
 
@@ -103,8 +137,9 @@ See [Development](#development).
 
 ### Prerequisites
 
-- **Rust** (stable, MSVC toolchain) and **Node.js 20+**.
-- The Microsoft Edge **WebView2** runtime (preinstalled on Windows 11 / updated Windows 10).
+- **Rust** (stable — MSVC toolchain on Windows, the default toolchain on macOS) and **Node.js 20+**.
+- **Windows:** the Microsoft Edge **WebView2** runtime (preinstalled on Windows 11 / updated Windows 10).
+- **macOS:** Xcode Command Line Tools (`xcode-select --install`); macOS 11+.
 
 ### Commands
 
