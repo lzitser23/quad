@@ -35,7 +35,7 @@ export function tokenFromCode(code: string): string | null {
   }
 }
 
-const IS_MAC =
+export const IS_MAC =
   typeof navigator !== "undefined" &&
   /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || "");
 
