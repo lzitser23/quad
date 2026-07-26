@@ -5,7 +5,7 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -35,10 +35,10 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
   portable:
-    # Heavy release build runs on push / tags / manual dispatch â€” PRs get the cheap `test` job above.
+    # Heavy release build runs on push / tags / manual dispatch — PRs get the cheap `test` job above.
     if: github.event_name != 'pull_request'
     runs-on: windows-latest
-    # "yes" once the Authenticode secrets are configured. Until then the binaries are unsigned â€” a
+    # "yes" once the Authenticode secrets are configured. Until then the binaries are unsigned — a
     # working exe/installer that SmartScreen warns about on first run.
     env:
       SIGNED: ${{ secrets.WINDOWS_CERTIFICATE != '' && 'yes' || 'no' }}
@@ -71,7 +71,7 @@ jobs:
 
       # ---- Signing (only when the Windows cert secrets are present) --------------------------
       # Authenticode-sign the portable exe + installer so SmartScreen trusts them. Skipped (unsigned)
-      # until WINDOWS_CERTIFICATE (base64 .pfx) / WINDOWS_CERTIFICATE_PASSWORD are configured â€” no
+      # until WINDOWS_CERTIFICATE (base64 .pfx) / WINDOWS_CERTIFICATE_PASSWORD are configured — no
       # cert is committed. Mirrors the mac job's secret-gated signing.
       - name: Sign the Windows binaries
         if: env.SIGNED == 'yes'
@@ -110,11 +110,11 @@ jobs:
           if-no-files-found: error
 
   mac:
-    # Heavy release build runs on push / tags / manual dispatch â€” PRs get the cheap `test` job above.
+    # Heavy release build runs on push / tags / manual dispatch — PRs get the cheap `test` job above.
     if: github.event_name != 'pull_request'
     runs-on: macos-latest
     # "yes" once the Apple signing secrets are configured (see below). Until then the build is
-    # ad-hoc signed and unsigned-notarized â€” it still produces a working DMG, just with the
+    # ad-hoc signed and unsigned-notarized — it still produces a working DMG, just with the
     # Gatekeeper warning + per-build Accessibility re-prompt.
     env:
       SIGNED: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && 'yes' || 'no' }}
@@ -162,7 +162,7 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN" login.keychain
           rm "$RUNNER_TEMP/certificate.p12"
 
-      # Expose the Apple ID notarization credentials â€” but only in the signed path, so unsigned
+      # Expose the Apple ID notarization credentials — but only in the signed path, so unsigned
       # builds don't hand Tauri blank credentials.
       - name: Prepare notarization credentials
         if: env.SIGNED == 'yes'
@@ -180,7 +180,7 @@ jobs:
       - name: Build (Tauri release, universal DMG)
         # Signs + notarizes with a stable Developer ID when the secrets are set (APPLE_ID /
         # APPLE_PASSWORD / APPLE_TEAM_ID come from the step above); otherwise ad-hoc ("-") with no
-        # notarization â€” a working DMG that Gatekeeper warns about on first open.
+        # notarization — a working DMG that Gatekeeper warns about on first open.
         run: npm run tauri build -- --target universal-apple-darwin --bundles app,dmg
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
@@ -202,7 +202,7 @@ jobs:
 
   release:
     needs: [portable, mac]
-    # Publish whatever built, even if one platform failed â€” so a macOS break can't hold up the
+    # Publish whatever built, even if one platform failed — so a macOS break can't hold up the
     # Windows release (and vice versa). Skipped only on cancellation or off-main builds.
     if: ${{ !cancelled() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: ubuntu-latest
@@ -229,12 +229,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: Quad â€” latest build from main
+          name: Quad — latest build from main
           prerelease: true
           files: dist/**/*
 
       # Versioned releases drive the in-app update check, which reads the
-      # latest non-prerelease â€” the tag must match the tauri.conf.json version.
+      # latest non-prerelease — the tag must match the tauri.conf.json version.
       - name: Publish versioned release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
