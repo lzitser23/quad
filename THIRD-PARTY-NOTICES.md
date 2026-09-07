@@ -9,8 +9,6 @@ dependencies (whose licenses are declared in `package.json`,
 The following components are adapted from [Aceternity UI](https://ui.aceternity.com),
 a free copy-paste React/Tailwind component collection:
 
-- `web/src/components/aceternity/BentoGrid.tsx`
-- `web/src/components/aceternity/HoverBorderGradient.tsx`
 - `web/src/components/aceternity/Spotlight.tsx`
 - `web/src/components/aceternity/SpotlightCard.tsx`
 - `web/src/components/aceternity/Tabs.tsx`
