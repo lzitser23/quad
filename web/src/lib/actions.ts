@@ -62,7 +62,3 @@ export const ACTIONS: ActionMeta[] = [
 ];
 
 export const CATEGORIES: Category[] = ["Halves", "Quarters", "Thirds", "Resize & Center", "Move"];
-
-export function metaFor(key: string): ActionMeta | undefined {
-  return ACTIONS.find((a) => a.key === key);
-}
